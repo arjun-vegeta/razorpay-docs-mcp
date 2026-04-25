@@ -17,11 +17,6 @@ coverage/
 .vscode/
 !.vscode/extensions.json
 
-# Internal planning + engineering rules — kept locally, not shipped
-plan.md
-buildplan.md
-CLAUDE.md
-
-# Editor + eval artifacts (regen on demand)
-.claude/
+# Eval reports (regen on demand) — keep the locked decision doc tracked
 eval/reports/
+!eval/reports/decision.md

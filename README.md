@@ -2,85 +2,135 @@
 
 > Unofficial. Not affiliated with Razorpay Software Pvt. Ltd.
 
-Local-first MCP server for Razorpay documentation. Search 2,200+ official Razorpay docs and (Phase 4+) validate user code against known Razorpay integration bug patterns — entirely on the user's machine, no API keys, no rate limits.
+Local-first MCP server for Razorpay's docs and SDKs. AI coding agents (Claude Code, Cursor, Codex CLI, Continue, Cline, Windsurf, ...) can `search_razorpay_docs`, `get_razorpay_doc`, and `validate_razorpay_code` against ~30 Razorpay-specific integration rules — entirely on the user's machine. No API keys. No rate limits. No telemetry.
 
-**Status:** in development.
-
-## Build status
-
-```
-Phase 1  Foundation & corpus       done
-Phase 2  Indexing pipeline         done
-Phase 3  Retrieval + 2 MCP tools   in progress
-Phase 4  Validator + 30 rules      pending
-Phase 5  Quality, polish, ship     pending
-```
-
-## Local dogfood (Phase 3)
+## Quick start
 
 ```bash
-pnpm install
-pnpm exec tsx src/indexer/main.ts pull          # clone razorpay/markdown-docs
-pnpm exec tsx src/indexer/main.ts build:bm25    # ~1s
-pnpm exec tsx src/indexer/main.ts build:vec --embedder=small  # ~10 min, one-time
-pnpm build                                       # bundle dist/server.js
+npx @razorpay-docs/mcp --version    # smoke test
 ```
 
-Wire into Claude Code (`~/.claude/mcp_servers.json` or per-project `.mcp.json`):
+Then drop the snippet for your editor below and restart the editor. The agent will start calling the tools when you ask Razorpay-related questions.
+
+### Claude Code
+
+`~/.claude/mcp_servers.json` (global) or `<project>/.mcp.json` (per-project):
 
 ```json
 {
   "mcpServers": {
     "razorpay-docs": {
-      "command": "node",
-      "args": ["/abs/path/to/razorpay-docs/dist/server.js"]
+      "command": "npx",
+      "args": ["-y", "@razorpay-docs/mcp"]
     }
   }
 }
 ```
 
-Or for Cursor (`.cursor/mcp.json`):
+### Cursor
+
+`<project>/.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "razorpay-docs": {
-      "command": "node",
-      "args": ["/abs/path/to/razorpay-docs/dist/server.js"]
+      "command": "npx",
+      "args": ["-y", "@razorpay-docs/mcp"]
     }
   }
 }
 ```
 
-Restart the editor and ask a Razorpay question — the agent should call `search_razorpay_docs`.
+### VS Code (Copilot Chat MCP), Continue, Cline, Windsurf
+
+Same JSON shape — point `command` to `npx`, `args` to `["-y", "@razorpay-docs/mcp"]`.
+
+### Streamable HTTP (deployed)
+
+```bash
+npx @razorpay-docs/mcp --http --port=3030
+```
+
+Then point your client at `http://localhost:3030/`. Useful for shared deployments (Cloudflare Workers, Render, internal Docker).
+
+## What you get
+
+| Tool | Purpose | Returns |
+|---|---|---|
+| `search_razorpay_docs` | Hybrid BM25 + dense retrieval over 2,200+ official docs | Ranked chunks with title, summary, body excerpt, code blocks filtered to your SDK, canonical URL |
+| `get_razorpay_doc` | Fetch full content for a known route or URL | Whole markdown body + outgoing links |
+| `validate_razorpay_code` | Lint a snippet against ~30 known Razorpay integration bugs | Issues with rule id, severity, fix suggestion, citation URL |
+
+The validator is the killer feature: it catches bugs that retrieval can't (HMAC over `JSON.stringify(req.body)`, `===` comparison on signatures, hardcoded `rzp_live_*` keys, refunds without `Idempotency-Key`, …) and points the agent at the exact doc that explains the fix.
+
+SDK auto-detect: if your project root has a `package.json` / `composer.json` / `requirements.txt` / `Gemfile` / `go.mod` / `pom.xml` listing Razorpay, results auto-prioritize code samples in that language.
+
+## Why this beats Context7
+
+Context7 is a generic docs MCP. We're Razorpay-specific:
+
+- **2,200+ docs, refreshed nightly** — Razorpay's full official corpus, not a scraped subset
+- **Code samples filtered to your SDK** — answer in your language, every time
+- **Validator with curated rules** — 30 rules with citations to canonical docs; not a regex catalog
+- **Local-first** — fast, free, private, no rate limits
+- **Hybrid retrieval** — BM25 for identifier-heavy queries, dense vectors for synonyms, RRF fusion
+
+[Eval comparison →](./eval/reports/decision.md)
 
 ## Configuration
 
 | Env var | Default | Effect |
 |---|---|---|
-| `RZP_MCP_EMBEDDER` | `small` | `none` / `small` / `base` / `large` / `m3` |
+| `RZP_MCP_EMBEDDER` | `small` | `none` / `small` / `base` / `large` / `m3` / `voyage` / `cohere` |
 | `RZP_MCP_RERANKER` | `none` | `none` / `tiny` |
-| `RZP_MCP_LOG_LEVEL` | `warn` | `error` / `warn` / `info` / `debug` (stderr) |
-| `RZP_MCP_INDEX_DIR` | `dist/index` | override path to index files |
+| `RZP_MCP_LOG_LEVEL` | `warn` | `error` / `warn` / `info` / `debug` (stderr only) |
+| `RZP_MCP_INDEX_DIR` | `<install>/dist/index` | override path to index files |
+| `RZP_MCP_AUTO_UPDATE` | `1` | `0` disables the daily upstream-update check |
+| `VOYAGE_API_KEY` | — | required if `RZP_MCP_EMBEDDER=voyage` |
+| `COHERE_API_KEY` | — | required if `RZP_MCP_EMBEDDER=cohere` |
+| `RZP_MCP_VOYAGE_MODEL` | `voyage-3-lite` | override Voyage model |
+| `RZP_MCP_COHERE_MODEL` | `embed-english-v3.0` | override Cohere model |
 
-## Eval harness
+## BYO API keys (optional)
+
+By default everything runs locally with `bge-small-en-v1.5` (32 MB, 384-dim) — good enough for ~80% recall@3 on our 80-query eval. If you want top-quality retrieval and don't mind a network round-trip per query, plug in Voyage or Cohere. You'll need to **rebuild the index** with the same embedder so query and document dims match:
 
 ```bash
-pnpm eval                                          # default config
-pnpm eval --reranker=tiny --report eval/reports/with-rerank.md
-pnpm eval --validate-routes-only                   # CI route-resolution gate
+VOYAGE_API_KEY=… RZP_MCP_EMBEDDER=voyage pnpm indexer:build --embedder=voyage
 ```
 
-Pass criteria: recall@3 ≥ 0.80, p95 latency ≤ 200 ms.
+Then run the server with the same env vars set.
 
-## Tools (MCP)
+## Privacy
 
-- **`search_razorpay_docs(query, language?, product?, topic?, k?)`** — hybrid BM25 + vector retrieval, returns ≤10 chunks with code samples filtered to your SDK language.
-- **`get_razorpay_doc(route_or_url, language?, format?)`** — fetch full content for a known route.
-- **`validate_razorpay_code(code, language?, concern?)`** — *(Phase 4)* — detects ~30 known Razorpay integration bugs.
+- All retrieval, embedding, reranking, and validation runs locally. The corpus + indexes ship in the npm package.
+- The only network call is the daily "upstream docs updated?" check to `api.github.com/repos/razorpay/markdown-docs/commits/master` — no auth, no payload, just a SHA compare. Disable with `RZP_MCP_AUTO_UPDATE=0`.
+- Zero telemetry. We don't phone home.
+
+## Local dev / contributing
+
+```bash
+pnpm install
+pnpm indexer:pull              # clone razorpay/markdown-docs
+pnpm indexer:build             # ~1s for BM25, ~10 min for embeddings (one-time)
+pnpm indexer:build --embedder=small   # rebuild vector index for a different embedder
+pnpm exec tsx src/indexer/main.ts build:rules   # CI gate: every rule citation resolves
+pnpm build                     # bundle dist/server.js
+pnpm test                      # full suite
+pnpm eval                      # retrieval gates: recall@3 ≥ 0.80, p95 ≤ 200ms
+```
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for adding rules and queries.
+
+## Architecture
+
+[Architecture overview →](./docs/ARCHITECTURE.md)
+
+[Validation rules catalog →](./docs/RULES.md) (auto-generated from `dist/index/rules.json`)
 
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
 
-Documentation indexed by this project comes from [`razorpay/markdown-docs`](https://github.com/razorpay/markdown-docs) (also MIT). This project is unofficial and not affiliated with Razorpay.
+Documentation indexed by this project comes from [`razorpay/markdown-docs`](https://github.com/razorpay/markdown-docs) (also MIT). This project is unofficial and not affiliated with Razorpay Software Pvt. Ltd.
