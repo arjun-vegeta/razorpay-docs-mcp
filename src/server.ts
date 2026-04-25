@@ -8,8 +8,11 @@
  * Embedder + reranker load lazily on first call (CLAUDE.md §9.9).
  */
 
+import { createServer as createHttpServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -34,6 +37,9 @@ import {
 import { SqliteCitationResolver } from "./validator/cite.js";
 import { ALL_RULES } from "./validator/rules/index.js";
 import { ValidationRunner } from "./validator/runner.js";
+import type { Lang } from "./util/lang.js";
+import { scheduleAutoUpdateCheck } from "./util/auto-update.js";
+import { detectSdk } from "./util/sdk-detect.js";
 import { log } from "./util/log.js";
 
 const SERVER_NAME = "razorpay-docs";
@@ -167,17 +173,35 @@ export interface ServerHandle {
   readonly server: Server;
   readonly pipeline: RetrievalPipeline;
   readonly runner: ValidationRunner;
+  readonly defaultLanguage?: Lang;
   close(): void;
 }
 
-export function createServer(): ServerHandle {
-  const config = loadPipelineConfig(process.cwd());
+export interface CreateServerOptions {
+  /** Disable the upstream-update check (tests, offline runs). */
+  readonly skipAutoUpdate?: boolean;
+  /** Override the working directory used by SDK auto-detection. */
+  readonly cwd?: string;
+}
+
+export function createServer(opts: CreateServerOptions = {}): ServerHandle {
+  const cwd = opts.cwd ?? process.cwd();
+  const config = loadPipelineConfig(cwd);
   const pipeline = new RetrievalPipeline(config);
 
   const resolver = new SqliteCitationResolver(pipeline.bm25Handle);
   const runner = new ValidationRunner(resolver);
   runner.registerAll(ALL_RULES);
   log.info("validator ready", { rules: runner.count() });
+
+  const detected = detectSdk(cwd);
+  if (detected !== undefined) {
+    log.info("detected SDK in cwd", detected);
+  }
+
+  if (opts.skipAutoUpdate !== true) {
+    void scheduleAutoUpdateCheck({ db: pipeline.bm25Handle });
+  }
 
   const server = new Server(
     { name: SERVER_NAME, version: SERVER_VERSION },
@@ -211,7 +235,13 @@ export function createServer(): ServerHandle {
     try {
       switch (name) {
         case SEARCH_TOOL_NAME: {
-          const output = await runSearchTool({ pipeline }, args ?? {});
+          const output = await runSearchTool(
+            {
+              pipeline,
+              ...(detected !== undefined && { defaultLanguage: detected }),
+            },
+            args ?? {},
+          );
           return jsonContent(output);
         }
         case GET_DOC_TOOL_NAME: {
@@ -242,15 +272,91 @@ export function createServer(): ServerHandle {
     server,
     pipeline,
     runner,
+    ...(detected !== undefined && { defaultLanguage: detected }),
     close: () => {
       pipeline.close();
     },
   };
 }
 
-async function main(): Promise<void> {
-  const handle = createServer();
+interface CliFlags {
+  readonly http: boolean;
+  readonly port: number;
+}
+
+function parseFlags(argv: readonly string[]): CliFlags {
+  let http = false;
+  let port = 3030;
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === "--http") http = true;
+    else if (a !== undefined && a.startsWith("--port=")) {
+      const n = Number.parseInt(a.slice("--port=".length), 10);
+      if (!Number.isFinite(n) || n <= 0 || n > 65_535) {
+        throw new Error(`invalid --port=${a}`);
+      }
+      port = n;
+    } else if (a === "--port") {
+      const next = argv[i + 1];
+      const n = Number.parseInt(next ?? "", 10);
+      if (!Number.isFinite(n)) throw new Error(`invalid --port value: ${String(next)}`);
+      port = n;
+      i += 1;
+    } else if (a === "--version") {
+      process.stdout.write(`${SERVER_VERSION}\n`);
+      process.exit(0);
+    }
+  }
+  return { http, port };
+}
+
+async function startStdio(handle: ServerHandle): Promise<void> {
   const transport = new StdioServerTransport();
+  log.info(`razorpay-docs MCP server v${SERVER_VERSION} (stdio)`, {
+    embedder: handle.pipeline.config.embedderSpec,
+    reranker: handle.pipeline.config.rerankerSpec,
+    indexDir: handle.pipeline.config.indexDir,
+  });
+  await handle.server.connect(transport);
+}
+
+async function startHttp(handle: ServerHandle, port: number): Promise<void> {
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+  });
+  // SDK's StreamableHTTPServerTransport has optional `onclose` typed as
+  // `() => void` which conflicts with `exactOptionalPropertyTypes`. The
+  // contract is fine at runtime — assign through an unknown cast.
+  await handle.server.connect(transport as unknown as Parameters<typeof handle.server.connect>[0]);
+
+  const httpServer = createHttpServer((req, res) => {
+    void (async (): Promise<void> => {
+      try {
+        await transport.handleRequest(req, res);
+      } catch (err) {
+        log.error("http transport error", err instanceof Error ? err.message : String(err));
+        if (!res.headersSent) {
+          res.statusCode = 500;
+          res.end("internal error");
+        }
+      }
+    })();
+  });
+
+  await new Promise<void>((resolveFn) => {
+    httpServer.listen(port, () => {
+      log.info(`razorpay-docs MCP server v${SERVER_VERSION} (http) listening on :${port}`);
+      resolveFn();
+    });
+  });
+
+  process.on("SIGTERM", () => httpServer.close());
+  process.on("SIGINT", () => httpServer.close());
+}
+
+async function main(): Promise<void> {
+  const flags = parseFlags(process.argv.slice(2));
+  const handle = createServer();
 
   const shutdown = (signal: NodeJS.Signals): void => {
     log.info("received", signal, "— shutting down");
@@ -260,13 +366,11 @@ async function main(): Promise<void> {
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 
-  log.info(`razorpay-docs MCP server v${SERVER_VERSION}`, {
-    embedder: handle.pipeline.config.embedderSpec,
-    reranker: handle.pipeline.config.rerankerSpec,
-    indexDir: handle.pipeline.config.indexDir,
-  });
-
-  await handle.server.connect(transport);
+  if (flags.http) {
+    await startHttp(handle, flags.port);
+  } else {
+    await startStdio(handle);
+  }
 }
 
 // Only run if invoked directly (not when imported by tests).
