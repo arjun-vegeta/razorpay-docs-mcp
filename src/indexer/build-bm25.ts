@@ -78,10 +78,6 @@ export interface BuildBm25Result {
   readonly meta: IndexMeta;
 }
 
-interface CrossLinkRow {
-  readonly fromRoute: string;
-  readonly toRoute: string;
-}
 
 function readSourceSha(sourceDir: string): string {
   const shaPath = resolve(sourceDir, ".sha");

@@ -226,7 +226,18 @@
     "authorise",
     "ecommerce",
     "dtype",
-    "dests"
+    "dests",
+    "setnx",
+    "browsery",
+    "hmacy",
+    "dedups",
+    "xyzxyzxyzxyzxy",
+    "shouldnotbehere",
+    "Submerchants",
+    "submerchants",
+    "Webhooks",
+    "webhooks",
+    "Vegeta"
   ],
   "allowCompoundWords": true
 }

@@ -31,7 +31,6 @@ export interface CrossLink {
 }
 
 const RAW_GH_PREFIX = "https://raw.githubusercontent.com/razorpay/markdown-docs/master/";
-const HEADING_PATTERN = /^(?<hashes>#{2,3})\s+(?<text>.+?)\s*$/gm;
 const FENCE_PATTERN = /^```(?<header>[^\n]*)\n(?<body>[\s\S]*?)\n```/gm;
 const HEADER_PATTERN = /^(?<lang>[^\s:]+)(?:\s*:\s*(?<label>.+))?$/;
 const CHARS_PER_TOKEN = 4;
