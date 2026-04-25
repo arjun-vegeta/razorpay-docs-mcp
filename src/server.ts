@@ -1,7 +1,8 @@
 /**
- * MCP server entry. stdio transport, two tools registered:
+ * MCP server entry. stdio transport, three tools registered:
  *   - search_razorpay_docs
  *   - get_razorpay_doc
+ *   - validate_razorpay_code
  *
  * Stdout is reserved for JSON-RPC; all logs go to stderr (CLAUDE.md §5).
  * Embedder + reranker load lazily on first call (CLAUDE.md §9.9).
@@ -25,6 +26,14 @@ import {
   GET_DOC_TOOL_DESCRIPTION,
   runGetDocTool,
 } from "./tools/get-doc.js";
+import {
+  VALIDATE_TOOL_NAME,
+  VALIDATE_TOOL_DESCRIPTION,
+  runValidateTool,
+} from "./tools/validate.js";
+import { SqliteCitationResolver } from "./validator/cite.js";
+import { ALL_RULES } from "./validator/rules/index.js";
+import { ValidationRunner } from "./validator/runner.js";
 import { log } from "./util/log.js";
 
 const SERVER_NAME = "razorpay-docs";
@@ -100,6 +109,47 @@ const GET_DOC_INPUT_JSON_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+const VALIDATE_INPUT_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    code: {
+      type: "string",
+      minLength: 1,
+      maxLength: 50_000,
+      description: "Source code snippet to scan. ≤ 50 KB.",
+    },
+    language: {
+      type: "string",
+      enum: ["node", "python", "php", "java", "ruby", "go", "dotnet", "kotlin", "curl"],
+      description: "SDK language hint. Auto-detected if omitted.",
+    },
+    filename: {
+      type: "string",
+      maxLength: 512,
+      description: "Filename hint (e.g., 'webhook.js'); the extension drives detection.",
+    },
+    concern: {
+      type: "string",
+      enum: [
+        "webhook_signature",
+        "amount_handling",
+        "order_flow",
+        "idempotency",
+        "key_safety",
+        "pci_compliance",
+        "currency",
+        "capture",
+        "webhook_handler",
+        "payment_methods",
+        "all",
+      ],
+      description: "Restrict scan to one concern. Default: all.",
+    },
+  },
+  required: ["code"],
+  additionalProperties: false,
+} as const;
+
 function errorContent(message: string): CallToolResult {
   return {
     content: [{ type: "text", text: message }],
@@ -116,12 +166,18 @@ function jsonContent(payload: unknown): CallToolResult {
 export interface ServerHandle {
   readonly server: Server;
   readonly pipeline: RetrievalPipeline;
+  readonly runner: ValidationRunner;
   close(): void;
 }
 
 export function createServer(): ServerHandle {
   const config = loadPipelineConfig(process.cwd());
   const pipeline = new RetrievalPipeline(config);
+
+  const resolver = new SqliteCitationResolver(pipeline.bm25Handle);
+  const runner = new ValidationRunner(resolver);
+  runner.registerAll(ALL_RULES);
+  log.info("validator ready", { rules: runner.count() });
 
   const server = new Server(
     { name: SERVER_NAME, version: SERVER_VERSION },
@@ -141,6 +197,11 @@ export function createServer(): ServerHandle {
           description: GET_DOC_TOOL_DESCRIPTION,
           inputSchema: GET_DOC_INPUT_JSON_SCHEMA,
         },
+        {
+          name: VALIDATE_TOOL_NAME,
+          description: VALIDATE_TOOL_DESCRIPTION,
+          inputSchema: VALIDATE_INPUT_JSON_SCHEMA,
+        },
       ],
     }),
   );
@@ -157,8 +218,14 @@ export function createServer(): ServerHandle {
           const output = runGetDocTool({ pipeline }, args ?? {});
           return jsonContent(output);
         }
+        case VALIDATE_TOOL_NAME: {
+          const output = runValidateTool({ runner }, args ?? {});
+          return jsonContent(output);
+        }
         default: {
-          return errorContent(`unknown tool '${name}'. expected: ${SEARCH_TOOL_NAME} | ${GET_DOC_TOOL_NAME}`);
+          return errorContent(
+            `unknown tool '${name}'. expected: ${SEARCH_TOOL_NAME} | ${GET_DOC_TOOL_NAME} | ${VALIDATE_TOOL_NAME}`,
+          );
         }
       }
     } catch (err) {
@@ -174,6 +241,7 @@ export function createServer(): ServerHandle {
   return {
     server,
     pipeline,
+    runner,
     close: () => {
       pipeline.close();
     },

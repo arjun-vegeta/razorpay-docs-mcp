@@ -143,6 +143,15 @@ export class RetrievalPipeline {
     this.vectorDb?.close();
   }
 
+  /**
+   * Expose the BM25 database handle for adjacent read-only consumers (e.g.,
+   * the validator's citation resolver). Callers MUST NOT close it; the
+   * pipeline owns the lifecycle.
+   */
+  public get bm25Handle(): DbType {
+    return this.bm25Db;
+  }
+
   public async search(options: SearchOptions): Promise<SearchResponse> {
     const t0 = Date.now();
     const k = clampK(options.k);
