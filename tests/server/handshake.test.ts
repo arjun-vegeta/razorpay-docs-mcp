@@ -97,7 +97,7 @@ describe("MCP server stdio handshake", () => {
     client?.close();
   });
 
-  it("handles initialize and lists two tools", { timeout: 20_000 }, async () => {
+  it("handles initialize and lists three tools", { timeout: 20_000 }, async () => {
     const c = client;
     if (c === undefined) throw new Error("client not initialized");
     const init = await c.send(1, "initialize", {
@@ -114,7 +114,44 @@ describe("MCP server stdio handshake", () => {
     expect(list.error).toBeUndefined();
     const result = list.result as { tools: { name: string }[] };
     const names = result.tools.map((t) => t.name);
-    expect(names).toEqual(["search_razorpay_docs", "get_razorpay_doc"]);
+    expect(names).toEqual([
+      "search_razorpay_docs",
+      "get_razorpay_doc",
+      "validate_razorpay_code",
+    ]);
+  });
+
+  it("validate_razorpay_code surfaces issues in a sloppy webhook handler", { timeout: 20_000 }, async () => {
+    const c = client;
+    if (c === undefined) throw new Error("client not initialized");
+    const resp = await c.send(6, "tools/call", {
+      name: "validate_razorpay_code",
+      arguments: {
+        code: [
+          "const crypto = require('crypto');",
+          "app.post('/webhook', (req, res) => {",
+          "  const expected = crypto.createHmac('sha256', secret)",
+          "    .update(JSON.stringify(req.body)).digest('hex');",
+          "  if (req.headers['x-razorpay-signature'] === expected) {",
+          "    res.status(500).send('processed');",
+          "  }",
+          "});",
+        ].join("\n"),
+        language: "node",
+      },
+    });
+    expect(resp.error).toBeUndefined();
+    const result = resp.result as { content: { text: string }[] };
+    const payload = JSON.parse(result.content[0]?.text ?? "{}") as {
+      issues: { rule_id: string; citation: { url: string } }[];
+      summary: { total: number };
+    };
+    const ids = payload.issues.map((i) => i.rule_id);
+    expect(ids).toContain("RZP001");
+    expect(ids).toContain("RZP002");
+    for (const issue of payload.issues) {
+      expect(issue.citation.url).toMatch(/^https?:\/\//);
+    }
   });
 
   it("returns structured JSON for search_razorpay_docs", { timeout: 20_000 }, async () => {
