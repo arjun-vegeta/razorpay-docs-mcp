@@ -30,13 +30,22 @@ Prefer this tool over get_razorpay_doc when you don't already know the route. Th
 
 export interface SearchToolDeps {
   readonly pipeline: RetrievalPipeline;
+  /**
+   * SDK language detected from the user's working directory (package.json,
+   * composer.json, etc.). Used when the caller didn't pass `language`.
+   */
+  readonly defaultLanguage?: SearchOptions["language"];
 }
 
 /** Convert MCP input → pipeline options. */
-function toSearchOptions(input: SearchInput): SearchOptions {
+function toSearchOptions(
+  input: SearchInput,
+  defaults: { defaultLanguage?: SearchOptions["language"] },
+): SearchOptions {
+  const language = input.language ?? defaults.defaultLanguage;
   return {
     query: input.query,
-    ...(input.language !== undefined && { language: input.language }),
+    ...(language !== undefined && { language }),
     ...(input.product !== undefined && { product: input.product }),
     ...(input.topic !== undefined && { topic: input.topic }),
     k: input.k,
@@ -86,7 +95,11 @@ export async function runSearchTool(
   rawInput: unknown,
 ): Promise<SearchOutput> {
   const input = SearchInputSchema.parse(rawInput);
-  const response = await deps.pipeline.search(toSearchOptions(input));
+  const response = await deps.pipeline.search(
+    toSearchOptions(input, {
+      ...(deps.defaultLanguage !== undefined && { defaultLanguage: deps.defaultLanguage }),
+    }),
+  );
   const output = toSearchOutput(response);
   return SearchOutputSchema.parse(output);
 }
