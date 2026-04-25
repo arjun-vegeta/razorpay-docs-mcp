@@ -8,7 +8,12 @@
  * latency cost (~50ms over top-20).
  */
 
-import { pipeline, type TextClassificationPipeline } from "@huggingface/transformers";
+import {
+  AutoModelForSequenceClassification,
+  AutoTokenizer,
+  type PreTrainedModel,
+  type PreTrainedTokenizer,
+} from "@huggingface/transformers";
 import { log } from "../util/log.js";
 
 export interface Reranker {
@@ -21,47 +26,73 @@ export interface RerankScore {
   readonly score: number;
 }
 
-export class JinaTinyReranker implements Reranker {
-  public readonly modelId: string;
-  private model: TextClassificationPipeline | undefined;
-  private loadPromise: Promise<TextClassificationPipeline> | undefined;
+interface ReadyModel {
+  readonly tokenizer: PreTrainedTokenizer;
+  readonly model: PreTrainedModel;
+}
 
-  public constructor(modelId: string = "Xenova/jina-reranker-v1-tiny-en") {
+interface LogitsOutput {
+  readonly logits: { readonly data: Float32Array; readonly dims: readonly number[] };
+}
+
+function isLogitsOutput(o: unknown): o is LogitsOutput {
+  return (
+    o !== null &&
+    typeof o === "object" &&
+    "logits" in o &&
+    (o as { logits: unknown }).logits !== null &&
+    typeof (o as { logits: unknown }).logits === "object"
+  );
+}
+
+export class MiniLmReranker implements Reranker {
+  public readonly modelId: string;
+  private ready: ReadyModel | undefined;
+  private loadPromise: Promise<ReadyModel> | undefined;
+
+  public constructor(modelId: string = "Xenova/ms-marco-MiniLM-L-6-v2") {
     this.modelId = modelId;
   }
 
   public async rerank(query: string, docs: readonly string[]): Promise<RerankScore[]> {
     if (docs.length === 0) return [];
-    const model = await this.ensureLoaded();
-    const pairs = docs.map((doc) => ({ text: query, text_pair: doc }));
-    // Pipeline types vary by task; treat the result as `unknown` and validate.
-    const raw: unknown = await model(pairs as never, { top_k: 1 });
-    const arr = Array.isArray(raw) ? (raw as unknown[]) : [raw];
-    return arr.map((entry, i) => {
-      const candidate = Array.isArray(entry) ? entry[0] : entry;
-      const score =
-        candidate !== null &&
-        typeof candidate === "object" &&
-        "score" in candidate &&
-        typeof (candidate as { score: unknown }).score === "number"
-          ? (candidate as { score: number }).score
-          : 0;
-      return { index: i, score };
-    });
+    const { tokenizer, model } = await this.ensureLoaded();
+
+    // Cross-encoder inputs: tokenize each (query, doc) pair as a sentence
+    // pair. We batch the call so we get one forward pass for all candidates.
+    const queries = docs.map(() => query);
+    const passages = [...docs];
+    const inputs = tokenizer(queries, {
+      text_pair: passages,
+      padding: true,
+      truncation: true,
+      max_length: 512,
+      return_tensors: "pt",
+    } as never) as never;
+
+    const out: unknown = await model(inputs);
+    if (!isLogitsOutput(out)) {
+      throw new Error("reranker output missing 'logits'");
+    }
+    // For a single-output cross-encoder, dims = [batch, 1]. The raw logit
+    // IS the relevance score; higher = more relevant. We return as-is.
+    const data = out.logits.data;
+    return docs.map((_, i) => ({ index: i, score: data[i] ?? 0 }));
   }
 
-  private ensureLoaded(): Promise<TextClassificationPipeline> {
-    if (this.model !== undefined) return Promise.resolve(this.model);
+  private ensureLoaded(): Promise<ReadyModel> {
+    if (this.ready !== undefined) return Promise.resolve(this.ready);
     if (this.loadPromise !== undefined) return this.loadPromise;
     this.loadPromise = (async () => {
       log.info("loading reranker", this.modelId);
       const t0 = Date.now();
-      const m = (await pipeline("text-classification", this.modelId, {
+      const tokenizer = (await AutoTokenizer.from_pretrained(this.modelId)) as PreTrainedTokenizer;
+      const model = (await AutoModelForSequenceClassification.from_pretrained(this.modelId, {
         dtype: "q8",
-      })) as TextClassificationPipeline;
-      this.model = m;
+      })) as PreTrainedModel;
+      this.ready = { tokenizer, model };
       log.info("reranker loaded", this.modelId, `${Date.now() - t0}ms`);
-      return m;
+      return this.ready;
     })();
     return this.loadPromise;
   }
@@ -78,7 +109,7 @@ export function loadReranker(spec: RerankerSpec): Reranker | undefined {
     case "none":
       return undefined;
     case "tiny":
-      return new JinaTinyReranker();
+      return new MiniLmReranker();
     default: {
       const _exhaustive: never = spec;
       throw new Error(`unknown reranker spec: ${String(_exhaustive)}`);
