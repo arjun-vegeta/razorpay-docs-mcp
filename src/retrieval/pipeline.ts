@@ -149,6 +149,11 @@ export class RetrievalPipeline {
     const rewritten = rewriteQuery(options.query, this.synonyms);
 
     // Choose effective product/topic — explicit args win, then inferred.
+    // Topic is NOT auto-inferred from the query: empirically the keyword-based
+    // topic detection (api/webhook/error etc.) over-fires and pulls precision
+    // down. The detection is computed in `rewrite` so callers can surface it
+    // for transparency, but we only apply the topic boost when the caller set
+    // it explicitly.
     const product = options.product ?? rewritten.detectedProduct;
     const productIsExplicit = options.product !== undefined;
     const language = options.language ?? rewritten.detectedLanguage;

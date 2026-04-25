@@ -12,7 +12,7 @@
 
 import { Lang, normalizeLang } from "../util/lang.js";
 import { expandQuery, type SynonymTable } from "../indexer/synonyms.js";
-import { ProductSpec, type ProductSpec as Product } from "./types.js";
+import { ProductSpec, TopicSpec, type ProductSpec as Product, type TopicSpec as Topic } from "./types.js";
 
 interface RewriteResult {
   readonly raw: string;
@@ -22,6 +22,7 @@ interface RewriteResult {
   readonly expandedTerms: readonly string[];
   readonly detectedLanguage?: Lang;
   readonly detectedProduct?: Product;
+  readonly detectedTopic?: Topic;
 }
 
 const LANG_HINTS: ReadonlyArray<readonly [RegExp, Lang]> = [
@@ -35,6 +36,16 @@ const LANG_HINTS: ReadonlyArray<readonly [RegExp, Lang]> = [
   [/\b(\.net|dotnet|csharp|c#|nuget)\b/i, Lang.Dotnet],
   [/\b(kotlin|android)\b/i, Lang.Kotlin],
   [/\b(curl|http)\b/i, Lang.Curl],
+];
+
+const TOPIC_HINTS: ReadonlyArray<readonly [RegExp, Topic]> = [
+  // Order matters: more specific patterns first
+  [/\b(webhook|webhooks|callback)\b/i, TopicSpec.Webhooks],
+  [/\b(test|sandbox|test mode|live mode)\b/i, TopicSpec.Testing],
+  [/\b(error|failure|errcode|error code)\b/i, TopicSpec.Errors],
+  [/\b(integration|integrate|setup|install)\b/i, TopicSpec.Integration],
+  [/\b(security|whitelist|ssl|cert|signature)\b/i, TopicSpec.Security],
+  [/\b(api|endpoint|entity|fetch|request|response)\b/i, TopicSpec.Api],
 ];
 
 const PRODUCT_HINTS: ReadonlyArray<readonly [RegExp, Product]> = [
@@ -76,12 +87,20 @@ function detectProduct(raw: string): Product | undefined {
   return undefined;
 }
 
+function detectTopic(raw: string): Topic | undefined {
+  for (const [re, topic] of TOPIC_HINTS) {
+    if (re.test(raw)) return topic;
+  }
+  return undefined;
+}
+
 export function rewriteQuery(raw: string, table: SynonymTable): RewriteResult {
   const trimmed = raw.trim();
   const cleaned = stripNoise(trimmed.toLowerCase());
   const expansion = expandQuery(cleaned, table);
   const detectedLanguage = detectLanguage(trimmed);
   const detectedProduct = detectProduct(trimmed);
+  const detectedTopic = detectTopic(trimmed);
 
   const expandedTerms: string[] = [];
   for (const group of expansion.expanded) expandedTerms.push(...group);
@@ -94,6 +113,7 @@ export function rewriteQuery(raw: string, table: SynonymTable): RewriteResult {
     expandedTerms,
     ...(detectedLanguage !== undefined && { detectedLanguage }),
     ...(detectedProduct !== undefined && { detectedProduct }),
+    ...(detectedTopic !== undefined && { detectedTopic }),
   };
   return result;
 }
