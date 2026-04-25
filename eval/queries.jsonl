@@ -1,0 +1,80 @@
+{"id":"q001","query":"razorpay api authentication","topic":"api","expected_routes":["api/authentication"]}
+{"id":"q002","query":"how do I authenticate against the razorpay api","topic":"api","expected_routes":["api/authentication"]}
+{"id":"q003","query":"razorpay api best practices","topic":"api","expected_routes":["api/best-practices"]}
+{"id":"q004","query":"razorpay sandbox setup","topic":"testing","expected_routes":["api/sandbox-setup"]}
+{"id":"q005","query":"razorpay test mode setup","topic":"testing","expected_routes":["api/sandbox-setup"]}
+{"id":"q006","query":"generate razorpay api keys","expected_routes":["payments/dashboard/account-settings/api-keys"]}
+{"id":"q007","query":"test vs live razorpay keys","expected_routes":["payments/dashboard/account-settings/api-keys"]}
+{"id":"q008","query":"razorpay errors error codes","topic":"errors","expected_routes":["errors","errors/common"]}
+{"id":"q009","query":"create razorpay order","language":"node","expected_routes":["api/orders/create"]}
+{"id":"q010","query":"create an order razorpay","topic":"api","expected_routes":["api/orders/create"]}
+{"id":"q011","query":"about razorpay orders concept","expected_routes":["payments/orders","payments/orders/apis"]}
+{"id":"q012","query":"fetch all razorpay orders","expected_routes":["api/orders/fetch-all"]}
+{"id":"q013","query":"fetch single razorpay order by id","expected_routes":["api/orders/fetch-with-id"]}
+{"id":"q014","query":"fetch payments for an order","expected_routes":["api/orders/fetch-payments"]}
+{"id":"q015","query":"order receipt field razorpay","expected_routes":["api/orders/create","payments/orders/apis"]}
+{"id":"q016","query":"order entity properties razorpay","expected_routes":["api/orders/entity"]}
+{"id":"q017","query":"capture razorpay payment","language":"node","topic":"api","expected_routes":["api/payments/capture"]}
+{"id":"q018","query":"manual capture vs auto capture razorpay","expected_routes":["payments/payments/capture-settings","api/payments/capture"]}
+{"id":"q019","query":"late authorization payment razorpay","expected_routes":["payments/payments/late-authorisation"]}
+{"id":"q020","query":"how to handle late authorized payment","expected_routes":["payments/payments/late-authorisation/handle","payments/payments/late-authorisation"]}
+{"id":"q021","query":"fetch all payments razorpay","expected_routes":["api/payments/fetch-all-payments"]}
+{"id":"q022","query":"fetch payment by id razorpay","expected_routes":["api/payments/fetch-with-id"]}
+{"id":"q023","query":"fetch payment with expanded card details","expected_routes":["api/payments/fetch-payment-expanded-card","api/payments/fetch-card-details-payment"]}
+{"id":"q024","query":"create a payment link razorpay","expected_routes":["api/payments/payment-links/create-standard"]}
+{"id":"q025","query":"recurring payment card token","expected_routes":["api/payments/recurring-payments/cards/tokens"]}
+{"id":"q026","query":"upi payment migration razorpay","expected_routes":["announcements/upi-collect-migration/standard-integration","announcements/upi-collect-migration/custom-integration"]}
+{"id":"q027","query":"razorpay settlements api","expected_routes":["api/settlements","api/settlements/fetch-all"]}
+{"id":"q028","query":"fetch razorpay settlement details","expected_routes":["api/settlements/fetch-all","api/settlements/fetch-with-id"]}
+{"id":"q029","query":"razorpay payment downtime status","expected_routes":["api/payments/downtime/fetch-all","api/payments/downtime/fetch-with-id"]}
+{"id":"q030","query":"about razorpay webhooks","expected_routes":["webhooks"]}
+{"id":"q031","query":"how to verify razorpay webhook signature","language":"node","topic":"webhooks","expected_routes":["webhooks/validate-test"]}
+{"id":"q032","query":"validate webhook hmac razorpay","topic":"webhooks","expected_routes":["webhooks/validate-test"]}
+{"id":"q033","query":"webhook signature is invalid razorpay","topic":"webhooks","expected_routes":["webhooks/validate-test","webhooks/best-practices"]}
+{"id":"q034","query":"setup razorpay payment webhook","topic":"webhooks","expected_routes":["webhooks/setup-edit-payments"]}
+{"id":"q035","query":"setup razorpayx payout webhook","product":"x","topic":"webhooks","expected_routes":["webhooks/setup-edit-payouts"]}
+{"id":"q036","query":"webhook retry policy razorpay","topic":"webhooks","expected_routes":["webhooks/best-practices"]}
+{"id":"q037","query":"webhook idempotency razorpay","topic":"webhooks","expected_routes":["webhooks/best-practices"]}
+{"id":"q038","query":"list of payment webhook events razorpay","topic":"webhooks","expected_routes":["webhooks/payments"]}
+{"id":"q039","query":"order webhook payload razorpay","topic":"webhooks","expected_routes":["webhooks/orders"]}
+{"id":"q040","query":"payout webhook events razorpayx","product":"x","topic":"webhooks","expected_routes":["webhooks/payouts"]}
+{"id":"q041","query":"webhook ip whitelist razorpay","topic":"webhooks","expected_routes":["security/whitelists","webhooks/best-practices"]}
+{"id":"q042","query":"webhook url ports allowed","topic":"webhooks","expected_routes":["webhooks/setup-edit-payments","webhooks"]}
+{"id":"q043","query":"refund a razorpay payment","language":"node","expected_routes":["api/refunds/create-normal"]}
+{"id":"q044","query":"create instant refund razorpay","expected_routes":["api/refunds/create-instant"]}
+{"id":"q045","query":"refund without duplicate idempotency","expected_routes":["api/refunds/normal-refunds-idempotent"]}
+{"id":"q046","query":"instant refund idempotency key","expected_routes":["api/refunds/instant-refunds-idempotent"]}
+{"id":"q047","query":"fetch all refunds for a payment","expected_routes":["api/refunds/fetch-multiple-refund-payment","api/refunds/fetch-all"]}
+{"id":"q048","query":"partial refund razorpay api","expected_routes":["api/refunds/create-normal"]}
+{"id":"q049","query":"create razorpay subscription","expected_routes":["api/payments/subscriptions/create-subscription"]}
+{"id":"q050","query":"cancel a razorpay subscription","expected_routes":["api/payments/subscriptions/cancel-subscription"]}
+{"id":"q051","query":"create subscription plan razorpay","expected_routes":["api/payments/subscriptions/create-plan"]}
+{"id":"q052","query":"add an addon to subscription","expected_routes":["api/payments/subscriptions/create-add-on","api/payments/subscriptions/add-on-entity"]}
+{"id":"q053","query":"recurring payment rbi guidelines","expected_routes":["announcements/rbi-card-mandate-guidelines/recurring-payments"]}
+{"id":"q054","query":"e-mandate auto-debit setup razorpay","expected_routes":["api/payments/recurring-payments/cards/tokens","announcements/rbi-card-mandate-guidelines/recurring-payments"]}
+{"id":"q055","query":"magic checkout cod integration","expected_routes":["payments/cod-magic-checkout"]}
+{"id":"q056","query":"woocommerce magic checkout razorpay","expected_routes":["payments/magic-checkout/woocommerce"]}
+{"id":"q057","query":"razorpay 1cc one click checkout","expected_routes":["payments/cod-magic-checkout","payments/magic-checkout/woocommerce"]}
+{"id":"q058","query":"shopify cod magic checkout razorpay","expected_routes":["payments/cod-magic-checkout/shopify"]}
+{"id":"q059","query":"create razorpayx payout","product":"x","expected_routes":["api/x/payouts","api/x/payouts/create/bank-account"]}
+{"id":"q060","query":"razorpayx payout to bank account","product":"x","expected_routes":["api/x/payouts/create/bank-account"]}
+{"id":"q061","query":"razorpayx payout to vpa upi","product":"x","expected_routes":["api/x/payouts/create/vpa"]}
+{"id":"q062","query":"cancel a razorpayx payout","product":"x","expected_routes":["api/x/payouts/cancel"]}
+{"id":"q063","query":"fetch razorpayx payouts list","product":"x","expected_routes":["api/x/payouts/fetch-all","api/x/payouts"]}
+{"id":"q064","query":"approve a razorpayx payout","product":"x","expected_routes":["api/x/payouts-approval/approve"]}
+{"id":"q065","query":"razorpayx payout idempotency","product":"x","expected_routes":["api/x/payout-idempotency","api/x/payout-idempotency/make-request"]}
+{"id":"q066","query":"razorpayx api keys dashboard","product":"x","expected_routes":["x/dashboard/api-keys"]}
+{"id":"q067","query":"common razorpay error codes","topic":"errors","expected_routes":["errors/common","errors"]}
+{"id":"q068","query":"card payment errors razorpay","topic":"errors","expected_routes":["errors/payments/cards","errors/payments/list"]}
+{"id":"q069","query":"BAD_REQUEST_ERROR razorpay","topic":"errors","expected_routes":["errors/common","errors"]}
+{"id":"q070","query":"GATEWAY_ERROR retry razorpay","topic":"errors","expected_routes":["errors/common","errors"]}
+{"id":"q071","query":"integrate razorpay node js server","language":"node","topic":"integration","expected_routes":["payments/server-integration/nodejs/integration-steps","payments/server-integration/nodejs"]}
+{"id":"q072","query":"razorpay python sdk integration","language":"python","topic":"integration","expected_routes":["payments/server-integration/python/integration-steps","payments/server-integration/python"]}
+{"id":"q073","query":"razorpay php integration laravel","language":"php","topic":"integration","expected_routes":["payments/server-integration/php/integration-steps"]}
+{"id":"q074","query":"razorpay java sdk integration","language":"java","topic":"integration","expected_routes":["payments/server-integration/java/integration-steps","payments/server-integration/java"]}
+{"id":"q075","query":"razorpay ruby on rails sdk","language":"ruby","topic":"integration","expected_routes":["payments/server-integration/ruby/integration-steps","payments/server-integration/ruby"]}
+{"id":"q076","query":"razorpay go golang integration","language":"go","topic":"integration","expected_routes":["payments/server-integration/go/integration-steps"]}
+{"id":"q077","query":"razorpay woocommerce plugin","language":"php","topic":"integration","expected_routes":["payments/payment-gateway/ecommerce-plugins/woocommerce","payments/payment-gateway/ecommerce-plugins/woocommerce/integration-steps"]}
+{"id":"q078","query":"razorpay magento plugin","language":"php","topic":"integration","expected_routes":["payments/payment-gateway/ecommerce-plugins/magento","payments/payment-gateway/ecommerce-plugins/magento/integration-steps"]}
+{"id":"q079","query":"amount in paise vs rupees","expected_routes":["razorpay-n8n-node/troubleshooting-faqs","api/orders/create"]}
+{"id":"q080","query":"how to convert rupees to paise razorpay","expected_routes":["razorpay-n8n-node/troubleshooting-faqs"]}

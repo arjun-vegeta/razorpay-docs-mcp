@@ -16,3 +16,8 @@ coverage/
 .idea/
 .vscode/
 !.vscode/extensions.json
+
+# Internal planning + engineering rules — kept locally, not shipped
+plan.md
+buildplan.md
+CLAUDE.md
