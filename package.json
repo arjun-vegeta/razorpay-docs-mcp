@@ -33,9 +33,11 @@
     "dev": "tsx src/server.ts"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.9.0",
     "gray-matter": "^4.0.3",
+    "sqlite-vec": "^0.1.9",
     "zod": "^3.24.1"
   },
   "devDependencies": {
