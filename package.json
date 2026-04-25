@@ -1,0 +1,56 @@
+{
+  "name": "@razorpay-docs/mcp",
+  "version": "0.0.0-dev",
+  "description": "Unofficial Razorpay docs MCP server for AI coding agents — local-first docs retrieval and code validation.",
+  "license": "MIT",
+  "author": "Arjun",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "main": "./dist/server.js",
+  "bin": {
+    "razorpay-docs-mcp": "./dist/server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "cspell:check": "cspell --no-progress --gitignore '**/*.{md,ts,json}'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "indexer:pull": "tsx src/indexer/main.ts pull",
+    "indexer:build": "tsx src/indexer/main.ts build",
+    "eval": "tsx eval/run.ts",
+    "dev": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^12.9.0",
+    "gray-matter": "^4.0.3",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.10.5",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "cspell": "^8.17.2",
+    "eslint": "^9.18.0",
+    "eslint-plugin-import": "^2.31.0",
+    "prettier": "^3.4.2",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0",
+    "vitest": "^3.0.0"
+  }
+}
