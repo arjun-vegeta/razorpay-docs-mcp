@@ -5,6 +5,13 @@ import { buildRulesIndex, CitationGateFailure } from "./build-rules.js";
 import { buildVecIndex } from "./build-vec.js";
 import { pullSource } from "./pull-source.js";
 
+// Indexer is a one-shot CLI; default to info-level so progress lines
+// (e.g. embedding 5%, 10%, ...) appear in CI logs and local runs without
+// the user having to set RZP_MCP_LOG_LEVEL by hand. Server keeps `warn`.
+if (process.env["RZP_MCP_LOG_LEVEL"] === undefined) {
+  process.env["RZP_MCP_LOG_LEVEL"] = "info";
+}
+
 interface ParsedArgs {
   readonly subcommand: string;
   readonly flags: ReadonlyMap<string, string>;

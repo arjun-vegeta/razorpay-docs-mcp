@@ -6,37 +6,32 @@ on:
   pull_request:
     branches: [main]
 
+# A new push to the same branch cancels the in-progress run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  # Always-on fast lane: code quality. ~1.5 min, needs no indexes/source.
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v3
         with:
           version: 9
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm   # (E) cache pnpm store
+
       - name: Install
         run: pnpm install --frozen-lockfile
-
-      - name: Pull Razorpay docs source
-        run: pnpm indexer:pull
-
-      - name: Build BM25 index
-        run: pnpm exec tsx src/indexer/main.ts build:bm25
-
-      - name: Build vector index (small)
-        run: pnpm exec tsx src/indexer/main.ts build:vec --embedder=small
-
-      - name: Citation gate (rules)
-        run: pnpm exec tsx src/indexer/main.ts build:rules
 
       - name: Typecheck
         run: pnpm typecheck
@@ -46,6 +41,100 @@ jobs:
 
       - name: Spell-check
         run: pnpm cspell:check
+
+      - name: Build
+        run: pnpm build
+
+  # (C) Detect which paths changed. Heavy lane runs only if code or test
+  # surface that affects retrieval/eval changed.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      heavy: ${{ steps.filter.outputs.heavy }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            heavy:
+              - 'src/**'
+              - 'tests/**'
+              - 'eval/queries.jsonl'
+              - 'eval/run.ts'
+              - 'eval/report.ts'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'tsconfig.json'
+              - 'tsup.config.ts'
+              - 'vitest.config.ts'
+              - '.github/workflows/ci.yml'
+
+  # Heavy lane: tests + eval + tarball, with index/model/pnpm caching.
+  heavy:
+    needs: [changes]
+    if: needs.changes.outputs.heavy == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm   # (E)
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Resolve upstream razorpay/markdown-docs SHA — cache key.
+      - name: Resolve upstream SHA
+        id: upstream
+        run: |
+          SHA=$(git ls-remote https://github.com/razorpay/markdown-docs HEAD | cut -f1)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "upstream sha: $SHA"
+
+      # (A) Cache built indexes + cloned source. Keyed on upstream SHA so
+      # rebuilds happen only when razorpay/markdown-docs changes.
+      - name: Cache built indexes + source
+        id: cache-indexes
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist/index
+            source
+          key: indexes-bge-small-${{ steps.upstream.outputs.sha }}-v1
+          restore-keys: |
+            indexes-bge-small-
+
+      # (B) Cache HuggingFace model weights so cache-miss rebuilds skip the
+      # 32 MB download. Eviction LRU after 7 days.
+      - name: Cache HuggingFace model
+        uses: actions/cache@v4
+        with:
+          path: node_modules/@huggingface/transformers/.cache
+          key: hf-bge-small-en-v1.5-v1
+
+      - name: Build indexes (cache miss)
+        if: steps.cache-indexes.outputs.cache-hit != 'true'
+        run: |
+          pnpm indexer:pull
+          pnpm exec tsx src/indexer/main.ts build:bm25
+          pnpm exec tsx src/indexer/main.ts build:vec --embedder=small
+          pnpm exec tsx src/indexer/main.ts build:rules
+
+      - name: Citation gate (cache hit — re-verify against cached source)
+        if: steps.cache-indexes.outputs.cache-hit == 'true'
+        run: pnpm exec tsx src/indexer/main.ts build:rules
 
       - name: Build
         run: pnpm build
@@ -61,5 +150,4 @@ jobs:
           set -e
           size_kb=$(npm pack --dry-run --json 2>/dev/null | node -e "const j=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(j[0].size)")
           echo "tarball: $size_kb bytes"
-          # 100 MB ceiling
           test "$size_kb" -lt 104857600

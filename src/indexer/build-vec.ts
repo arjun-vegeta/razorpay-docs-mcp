@@ -110,6 +110,8 @@ export async function buildVecIndex(options: BuildVecOptions): Promise<BuildVecR
   );
 
   let done = 0;
+  let lastReportedPct = -5;
+  log.info("embedding", progress(0, rows.length));
   for (let i = 0; i < rows.length; i += EMBED_BATCH_SIZE) {
     const batch = rows.slice(i, i + EMBED_BATCH_SIZE);
     const texts = batch.map(composeEmbeddingText);
@@ -119,8 +121,10 @@ export async function buildVecIndex(options: BuildVecOptions): Promise<BuildVecR
       vectors,
     );
     done += batch.length;
-    if (done % (EMBED_BATCH_SIZE * 16) === 0 || done === rows.length) {
+    const pct = rows.length === 0 ? 100 : Math.floor((done / rows.length) * 100);
+    if (pct - lastReportedPct >= 5 || done === rows.length) {
       log.info("embedding", progress(done, rows.length));
+      lastReportedPct = pct;
     }
   }
 
