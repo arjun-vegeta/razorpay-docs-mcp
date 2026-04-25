@@ -1,6 +1,7 @@
 import { isEmbedderSpec, type EmbedderSpec } from "../embedder/registry.js";
 import { log } from "../util/log.js";
 import { buildBm25Index } from "./build-bm25.js";
+import { buildRulesIndex, CitationGateFailure } from "./build-rules.js";
 import { buildVecIndex } from "./build-vec.js";
 import { pullSource } from "./pull-source.js";
 
@@ -93,8 +94,21 @@ async function main(): Promise<void> {
       return;
     }
     case "build:rules": {
-      log.info("build:rules: not yet implemented (Phase 4)");
-      process.exitCode = 0;
+      try {
+        const result = buildRulesIndex({ repoRoot });
+        log.info("rules build complete", {
+          path: result.outPath,
+          rules: result.rulesEmitted,
+        });
+      } catch (err) {
+        if (err instanceof CitationGateFailure) {
+          log.error("citation gate failed:");
+          log.error(err.message);
+          process.exitCode = 2;
+          return;
+        }
+        throw err;
+      }
       return;
     }
     default: {
