@@ -18,23 +18,26 @@ describe("tokenizeQuery", () => {
 describe("expandQuery", () => {
   const table = loadSynonyms();
 
-  it("OR-groups known synonyms in FTS5 syntax", () => {
-    const out = expandQuery("how do I refund", table);
+  it("OR-groups known synonyms in FTS5 syntax when expandSynonyms is on", () => {
+    const out = expandQuery("how do I refund", table, { expandSynonyms: true });
     expect(out.fts5.startsWith("(")).toBe(true);
     expect(out.fts5).toContain("refund OR return OR reverse");
   });
 
-  it("quotes terms with non-word characters", () => {
+  it("does NOT expand synonyms by default (precision over recall for BM25)", () => {
+    const out = expandQuery("how do I refund", table);
+    expect(out.fts5).toBe("refund");
+    expect(out.expanded).toEqual([]);
+  });
+
+  it("quotes terms with non-word characters even without synonym expansion", () => {
     const out = expandQuery("razorpay-x payout idempotency", table);
-    // razorpay-x is in a synonym group; OR group quotes hyphenated terms.
     expect(out.fts5).toContain('"razorpay-x"');
   });
 
-  it("passes through tokens without synonym groups", () => {
+  it("AND-joins top-level terms", () => {
     const out = expandQuery("create order receipt", table);
-    expect(out.fts5).toContain("receipt");
-    // "order" is in a synonym group so it'll be OR-grouped.
-    expect(out.fts5).toContain("(order");
+    expect(out.fts5).toBe("create AND order AND receipt");
   });
 
   it("returns the underlying tokens", () => {
