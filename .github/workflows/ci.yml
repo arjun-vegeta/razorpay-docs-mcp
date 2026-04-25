@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Pull Razorpay docs source
+        run: pnpm indexer:pull
+
+      - name: Build BM25 index
+        run: pnpm exec tsx src/indexer/main.ts build:bm25
+
+      - name: Build vector index (small)
+        run: pnpm exec tsx src/indexer/main.ts build:vec --embedder=small
+
+      - name: Citation gate (rules)
+        run: pnpm exec tsx src/indexer/main.ts build:rules
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Spell-check
+        run: pnpm cspell:check
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+      - name: Eval (gate on recall@3 ≥ 0.80)
+        run: pnpm eval --report eval/reports/ci.md
+
+      - name: Tarball size sanity
+        run: |
+          set -e
+          size_kb=$(npm pack --dry-run --json 2>/dev/null | node -e "const j=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(j[0].size)")
+          echo "tarball: $size_kb bytes"
+          # 100 MB ceiling
+          test "$size_kb" -lt 104857600

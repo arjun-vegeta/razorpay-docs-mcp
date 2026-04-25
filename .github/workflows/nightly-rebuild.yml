@@ -1,0 +1,82 @@
+name: nightly-rebuild
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # 03:17 UTC daily — odd minute to avoid GitHub-runner congestion
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Skip if upstream sha unchanged
+        id: sha_check
+        run: |
+          UPSTREAM=$(git ls-remote https://github.com/razorpay/markdown-docs HEAD | cut -f1)
+          INDEXED=$(node -e "const Db=require('better-sqlite3');const db=new Db('dist/index/index-bm25.db',{readonly:true});const r=db.prepare(\"SELECT value FROM meta WHERE key='source_sha'\").get();console.log(r?r.value:'')" 2>/dev/null || echo "")
+          echo "upstream=$UPSTREAM"
+          echo "indexed=$INDEXED"
+          if [ -n "$INDEXED" ] && [ "$UPSTREAM" = "$INDEXED" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "upstream unchanged ($UPSTREAM) — skipping rebuild"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull upstream docs
+        if: steps.sha_check.outputs.skip != 'true'
+        run: pnpm indexer:pull
+
+      - name: Build indexes (BM25 + small vec) and rules
+        if: steps.sha_check.outputs.skip != 'true'
+        run: |
+          pnpm exec tsx src/indexer/main.ts build:bm25
+          pnpm exec tsx src/indexer/main.ts build:vec --embedder=small
+          pnpm exec tsx src/indexer/main.ts build:rules
+
+      - name: Build + test + eval
+        if: steps.sha_check.outputs.skip != 'true'
+        run: |
+          pnpm build
+          pnpm test
+          pnpm eval --report eval/reports/nightly.md
+
+      - name: Open PR if upstream SHA changed
+        if: steps.sha_check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          if git diff --quiet -- dist/index/; then
+            echo "indexes unchanged; nothing to do"
+            exit 0
+          fi
+          BRANCH="auto/nightly-$(date -u +%Y%m%d)"
+          git config user.name "razorpay-docs-mcp-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add dist/index/ eval/reports/
+          git commit -m "chore: nightly upstream-docs refresh" --no-verify
+          git push -u origin "$BRANCH"
+          gh pr create --title "chore: nightly upstream-docs refresh" \
+            --body "Automated rebuild: upstream razorpay/markdown-docs changed." \
+            --base main --head "$BRANCH"
