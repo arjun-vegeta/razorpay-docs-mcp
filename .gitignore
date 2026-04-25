@@ -21,3 +21,7 @@ coverage/
 plan.md
 buildplan.md
 CLAUDE.md
+
+# Editor + eval artifacts (regen on demand)
+.claude/
+eval/reports/
