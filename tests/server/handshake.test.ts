@@ -90,6 +90,8 @@ describe("MCP server stdio handshake", () => {
       RZP_MCP_EMBEDDER: "none",
       RZP_MCP_RERANKER: "none",
       RZP_MCP_LOG_LEVEL: "error",
+      // Don't reach out to GitHub during tests.
+      RZP_MCP_AUTO_UPDATE: "0",
     });
   });
 
