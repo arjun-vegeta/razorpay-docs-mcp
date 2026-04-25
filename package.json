@@ -14,10 +14,18 @@
     "razorpay-docs-mcp": "./dist/server.js"
   },
   "files": [
-    "dist",
+    "dist/server.js",
+    "dist/indexer/main.js",
+    "dist/index/index-bm25.db",
+    "dist/index/index-vec-bge-small-en-v1.5.db",
+    "dist/index/doc-graph.json",
+    "dist/index/rules.json",
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",

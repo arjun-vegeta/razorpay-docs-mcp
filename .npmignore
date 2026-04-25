@@ -16,3 +16,14 @@ buildplan.md
 plan.md
 CLAUDE.md
 .github/
+.git/
+docs/
+
+# SQLite WAL/SHM artifacts (re-created at first read)
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Source maps blow up tarball; users can rebuild from source if needed
+dist/**/*.map
+
