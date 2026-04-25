@@ -1,5 +1,7 @@
-import { resolve } from "node:path";
+import { isEmbedderSpec, type EmbedderSpec } from "../embedder/registry.js";
 import { log } from "../util/log.js";
+import { buildBm25Index } from "./build-bm25.js";
+import { buildVecIndex } from "./build-vec.js";
 import { pullSource } from "./pull-source.js";
 
 interface ParsedArgs {
@@ -10,7 +12,7 @@ interface ParsedArgs {
 function parseArgs(argv: readonly string[]): ParsedArgs {
   const [subcommand, ...rest] = argv;
   if (subcommand === undefined) {
-    throw new Error("missing subcommand. usage: indexer <pull|build>");
+    throw new Error("missing subcommand. usage: indexer <pull|build|build:bm25|build:vec|build:rules>");
   }
   const flags = new Map<string, string>();
   for (let i = 0; i < rest.length; i++) {
@@ -28,6 +30,14 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   return { subcommand, flags };
 }
 
+function readEmbedderFlag(flags: ReadonlyMap<string, string>): EmbedderSpec {
+  const raw = flags.get("embedder") ?? "small";
+  if (!isEmbedderSpec(raw)) {
+    throw new Error(`invalid --embedder=${raw}. expected: none | small | base | large | m3`);
+  }
+  return raw;
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const repoRoot = process.cwd();
@@ -36,16 +46,61 @@ async function main(): Promise<void> {
     case "pull": {
       const result = pullSource(repoRoot);
       log.info("pull complete", { sha: result.sha, action: result.action });
-      break;
+      return;
+    }
+    case "build:bm25": {
+      const result = buildBm25Index({ repoRoot });
+      log.info("bm25 build complete", {
+        path: result.bm25DbPath,
+        chunks: result.meta.nChunks,
+        docs: result.meta.nDocs,
+        codeBlocks: result.meta.nCodeBlocks,
+        sourceSha: result.meta.sourceSha,
+      });
+      return;
+    }
+    case "build:vec": {
+      const spec = readEmbedderFlag(args.flags);
+      const result = await buildVecIndex({ repoRoot, embedder: spec });
+      log.info("vec build complete", {
+        path: result.vecDbPath,
+        modelId: result.modelId,
+        dim: result.dim,
+        vectors: result.nVectors,
+        elapsedMs: result.elapsedMs,
+      });
+      return;
     }
     case "build": {
-      // Implemented in Phase 2.
-      log.info("build: not yet implemented (Phase 2)");
+      const spec = readEmbedderFlag(args.flags);
+      const bm25 = buildBm25Index({ repoRoot });
+      log.info("bm25 build complete", {
+        chunks: bm25.meta.nChunks,
+        docs: bm25.meta.nDocs,
+        codeBlocks: bm25.meta.nCodeBlocks,
+      });
+      if (spec === "none") {
+        log.info("--embedder=none: skipping vector index");
+        return;
+      }
+      const vec = await buildVecIndex({ repoRoot, embedder: spec });
+      log.info("vec build complete", {
+        modelId: vec.modelId,
+        dim: vec.dim,
+        vectors: vec.nVectors,
+        elapsedMs: vec.elapsedMs,
+      });
+      return;
+    }
+    case "build:rules": {
+      log.info("build:rules: not yet implemented (Phase 4)");
       process.exitCode = 0;
-      break;
+      return;
     }
     default: {
-      throw new Error(`unknown subcommand '${args.subcommand}'. expected: pull | build`);
+      throw new Error(
+        `unknown subcommand '${args.subcommand}'. expected: pull | build | build:bm25 | build:vec | build:rules`,
+      );
     }
   }
 }
@@ -58,6 +113,3 @@ void (async (): Promise<void> => {
     process.exitCode = 1;
   }
 })();
-
-// Reference to silence unused import warnings under strict flags.
-void resolve;
