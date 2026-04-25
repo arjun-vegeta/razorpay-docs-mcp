@@ -1,0 +1,8 @@
+node_modules
+dist
+source
+.cache
+coverage
+*.db
+pnpm-lock.yaml
+eval/queries.jsonl
