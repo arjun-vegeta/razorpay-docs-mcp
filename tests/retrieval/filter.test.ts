@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   applyHardProductFilter,
   applyRecencyBoost,
+  applyRouteSegmentBoost,
   applySoftProductBoost,
   applyTopicBoost,
   RECENCY_BOOST,
   reSortByScore,
+  ROUTE_SEGMENT_EXACT_BOOST,
+  ROUTE_SEGMENT_WORD_BOOST,
   SOFT_BOOST,
   TOPIC_BOOST,
 } from "../../src/retrieval/filter.js";
@@ -78,5 +81,34 @@ describe("reSortByScore", () => {
   it("sorts descending and breaks ties by chunkId asc", () => {
     const sorted = reSortByScore([cand(3, "x", 1), cand(1, "x", 2), cand(2, "x", 1)]);
     expect(sorted.map((c) => c.chunkId)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("applyRouteSegmentBoost", () => {
+  it("applies the strong boost when terminal segment exactly equals a token", () => {
+    // route "errors" terminal == "errors" token → exact match boost
+    const cands = [cand(1, "errors", 1), cand(2, "api/orders/create", 1)];
+    const boosted = applyRouteSegmentBoost(cands, ["errors", "list"]);
+    expect(boosted.find((c) => c.chunkId === 1)?.score).toBeCloseTo(ROUTE_SEGMENT_EXACT_BOOST);
+    expect(boosted.find((c) => c.chunkId === 2)?.score).toBeCloseTo(1);
+  });
+
+  it("applies the weaker word boost when a hyphen-split word matches a token", () => {
+    // terminal "error-codes" splits to ["error", "codes"]; query has "error"
+    const cands = [cand(1, "errors/turbo-upi/error-codes", 1)];
+    const boosted = applyRouteSegmentBoost(cands, ["error"]);
+    expect(boosted[0]?.score).toBeCloseTo(ROUTE_SEGMENT_WORD_BOOST);
+  });
+
+  it("returns input unchanged when no token matches the terminal", () => {
+    const cands = [cand(1, "api/orders/create", 1)];
+    const boosted = applyRouteSegmentBoost(cands, ["webhook"]);
+    expect(boosted[0]?.score).toBeCloseTo(1);
+  });
+
+  it("ignores empty-token lists (no-op fast path)", () => {
+    const cands = [cand(1, "errors", 1)];
+    const boosted = applyRouteSegmentBoost(cands, []);
+    expect(boosted).toEqual(cands);
   });
 });

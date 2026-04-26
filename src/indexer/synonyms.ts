@@ -57,6 +57,9 @@ const STOPWORDS = new Set([
   // distort BM25 scoring toward filler-heavy pages)
   "to", "in", "on", "for", "with", "via", "using", "by", "through", "from", "into",
   "as", "at", "about", "across", "between", "over", "after", "before", "up", "down",
+  "against", "without", "until", "during", "while", "such", "than", "then",
+  // comparative / meta-words: noise in nearly every Razorpay doc query
+  "vs", "versus", "concept", "concepts", "single",
   // verbs that don't discriminate Razorpay docs
   "want", "need", "make", "get", "try", "use",
   // common modifiers
@@ -69,19 +72,44 @@ const STOPWORDS = new Set([
 ]);
 
 /**
+ * Naive English plural stemmer for query-time deduplication.
+ *
+ * Goal: collapse "error errors" → "errors" so strict-AND BM25 doesn't require
+ * BOTH forms to appear in a candidate doc. Real stemming is overkill for our
+ * use case; we just unify trivial plural pairs that would otherwise appear
+ * twice in the same query.
+ *
+ * Returns the canonical form for dedup purposes — NOT the query token itself.
+ */
+export function pluralStemKey(token: string): string {
+  if (token.length <= 3) return token;
+  if (token.endsWith("ies")) return token.slice(0, -3) + "y";
+  if (token.endsWith("es") && token.length > 4) return token.slice(0, -2);
+  if (token.endsWith("s") && !token.endsWith("ss")) return token.slice(0, -1);
+  return token;
+}
+
+/**
  * Tokenize a query: lowercase, keep alphanumerics + hyphens, drop short tokens
- * and stopwords. Returns deduped order-preserving tokens.
+ * and stopwords. Returns deduped order-preserving tokens — including a
+ * naive-plural collapse so "error errors codes" becomes ["errors", "codes"]
+ * instead of ["errors", "error", "codes"]. Strict-AND BM25 was rejecting
+ * canonical short docs that only had one form.
  */
 export function tokenizeQuery(raw: string): string[] {
   const lower = raw.toLowerCase();
   const tokens = lower.match(/[a-z0-9][a-z0-9_-]*/g) ?? [];
   const seen = new Set<string>();
+  const seenStems = new Set<string>();
   const out: string[] = [];
   for (const tok of tokens) {
     if (tok.length < 2) continue;
     if (STOPWORDS.has(tok)) continue;
     if (seen.has(tok)) continue;
     seen.add(tok);
+    const stem = pluralStemKey(tok);
+    if (seenStems.has(stem)) continue;
+    seenStems.add(stem);
     out.push(tok);
   }
   return out;

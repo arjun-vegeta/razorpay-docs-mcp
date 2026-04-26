@@ -13,6 +13,24 @@ describe("tokenizeQuery", () => {
   it("dedupes case-insensitively", () => {
     expect(tokenizeQuery("Webhook webhook WEBHOOK signature")).toEqual(["webhook", "signature"]);
   });
+
+  it("collapses naive plurals so strict-AND BM25 doesn't require both forms", () => {
+    // "errors" + "error" → keep first form, drop the duplicate stem.
+    // Without this, the strict-AND `errors AND error AND codes` rejects the
+    // canonical "About Errors" doc which only contains "errors" once.
+    expect(tokenizeQuery("razorpay errors error codes")).toEqual(["errors", "codes"]);
+  });
+
+  it("plural-stem is conservative: doesn't collapse short or -ss words", () => {
+    // "is" → too short; "address" → ends in "ss", not a plural; "policies" →
+    // -ies → policy.
+    expect(tokenizeQuery("address policies")).toEqual(["address", "policies"]);
+    expect(tokenizeQuery("policy policies")).toEqual(["policy"]);
+  });
+
+  it("strips comparison filler words like 'vs' and 'concept'", () => {
+    expect(tokenizeQuery("test vs live mode concept")).toEqual(["test", "live", "mode"]);
+  });
 });
 
 describe("expandQuery", () => {

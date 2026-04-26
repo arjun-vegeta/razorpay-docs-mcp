@@ -28,7 +28,7 @@ Drop the same JSON snippet into any of these — wiring is identical because the
 ## Quick start
 
 ```bash
-npx -y @razorpay-docs/mcp@latest --version    # 1.0.x
+npx -y @razorpay-docs/mcp@latest --version
 ```
 
 Then drop the snippet for your editor below and restart the editor. The agent will call the tools whenever you ask a Razorpay-related question.
@@ -42,7 +42,7 @@ Then drop the snippet for your editor below and restart the editor. The agent wi
   "mcpServers": {
     "razorpay-docs": {
       "command": "npx",
-      "args": ["-y", "@razorpay-docs/mcp"]
+      "args": ["-y", "@razorpay-docs/mcp@latest"]
     }
   }
 }
@@ -57,7 +57,7 @@ Then drop the snippet for your editor below and restart the editor. The agent wi
   "mcpServers": {
     "razorpay-docs": {
       "command": "npx",
-      "args": ["-y", "@razorpay-docs/mcp"]
+      "args": ["-y", "@razorpay-docs/mcp@latest"]
     }
   }
 }
@@ -70,7 +70,7 @@ Then drop the snippet for your editor below and restart the editor. The agent wi
 ```toml
 [mcp_servers.razorpay-docs]
 command = "npx"
-args = ["-y", "@razorpay-docs/mcp"]
+args = ["-y", "@razorpay-docs/mcp@latest"]
 ```
 
 ### VS Code Copilot Chat
@@ -82,7 +82,7 @@ args = ["-y", "@razorpay-docs/mcp"]
   "servers": {
     "razorpay-docs": {
       "command": "npx",
-      "args": ["-y", "@razorpay-docs/mcp"]
+      "args": ["-y", "@razorpay-docs/mcp@latest"]
     }
   }
 }
@@ -90,12 +90,12 @@ args = ["-y", "@razorpay-docs/mcp"]
 
 ### Continue, Cline, Windsurf, Zed, anything else
 
-Same JSON shape, different keys per host. The `command` is always `npx` and `args` is always `["-y", "@razorpay-docs/mcp"]`. Refer to your editor's MCP-server documentation for where to put it.
+Same JSON shape, different keys per host. The `command` is always `npx` and `args` is always `["-y", "@razorpay-docs/mcp@latest"]`. Refer to your editor's MCP-server documentation for where to put it.
 
 ### Streamable HTTP (deployed)
 
 ```bash
-npx @razorpay-docs/mcp --http --port=3030
+npx @razorpay-docs/mcp@latest --http --port=3030
 ```
 
 Then point your client at `http://localhost:3030/`. Useful for shared deployments (Cloudflare Workers, Render, internal Docker, Smithery).

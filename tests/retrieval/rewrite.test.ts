@@ -14,12 +14,23 @@ describe("rewriteQuery", () => {
     expect(r.cleaned).toContain("customer");
   });
 
-  it("AND-joins discriminative tokens (synonyms off by default)", () => {
+  it("plain fts5 AND-joins discriminative tokens", () => {
     const r = rewriteQuery("verify webhook signature", TABLE);
     expect(r.fts5).toContain("AND");
     expect(r.fts5.toLowerCase()).toContain("webhook");
     expect(r.fts5.toLowerCase()).toContain("signature");
-    expect(r.expandedTerms).toEqual([]);
+    // Plain fts5 does NOT have OR-groups (those go in fts5WithSynonyms).
+    expect(r.fts5).not.toContain(" OR ");
+  });
+
+  it("emits a parallel synonym-expanded fts5 for the dual-BM25 pass", () => {
+    const r = rewriteQuery("verify webhook signature", TABLE);
+    // The synonym-expanded form OR-groups tokens that have synonyms in the
+    // table — pipeline runs this as a second BM25 pass and RRF-fuses with
+    // the plain pass. Lets natural-language queries find docs that use
+    // different wording (e.g., "validate" instead of "verify").
+    expect(r.fts5WithSynonyms).toContain("OR");
+    expect(r.fts5WithSynonyms.toLowerCase()).toContain("validate");
   });
 
   it("detects SDK language hints", () => {
@@ -46,12 +57,16 @@ describe("rewriteQuery", () => {
     );
   });
 
-  it("expandedTerms is empty when synonym expansion is off (default)", () => {
+  it("surfaces expandedTerms (alternates) when tokens hit a synonym group", () => {
+    // The pipeline applies synonyms as a second BM25 pass; expandedTerms
+    // mirrors the alternates used so query_interpretation can show them to
+    // the agent for transparency.
     const r = rewriteQuery("refund a payment", TABLE);
-    expect(r.expandedTerms).toEqual([]);
-    // Tokens still surface for query interpretation:
     expect(r.tokens).toContain("refund");
     expect(r.tokens).toContain("payment");
+    // "refund" maps to a synonym group containing "return"/"reverse"/etc.,
+    // and "payment" to a group with "transaction"/"charge".
+    expect(r.expandedTerms.length).toBeGreaterThan(0);
   });
 
   it("preserves the raw query verbatim", () => {

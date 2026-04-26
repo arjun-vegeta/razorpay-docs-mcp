@@ -22,7 +22,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["eval/**/*.ts", "tests/**/*.ts"],
+    files: ["eval/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
     rules: {
       "no-console": "off",
       // Tests routinely assert array bounds via `arr[0]!` after a `length` check;

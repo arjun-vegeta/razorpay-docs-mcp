@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rrf, RRF_DEFAULT_K } from "../../src/retrieval/rrf.js";
+import { rrf, rrfWeighted, dedupeByRoute, RRF_DEFAULT_K } from "../../src/retrieval/rrf.js";
 import type { Candidate } from "../../src/retrieval/types.js";
 
 function bm25Cand(chunkId: number, score: number): Candidate {
@@ -62,5 +62,56 @@ describe("rrf", () => {
     const fused = rrf([a, b]);
     expect(fused[0]?.route).toBe("api/orders");
     expect(fused[0]?.category).toBe("api");
+  });
+});
+
+describe("rrfWeighted", () => {
+  it("scales each ranking's contribution by its weight", () => {
+    // Same rank-1 hit in two rankings; with weights [1, 0.5] the second
+    // contributes half as much.
+    const a = [bm25Cand(1, 1)];
+    const b = [vectorCand(1, 1)];
+    const fused = rrfWeighted([a, b], [1.0, 0.5]);
+    expect(fused[0]?.score).toBeCloseTo(1 / 61 + 0.5 / 61);
+  });
+
+  it("missing weight defaults to 1 (no-op)", () => {
+    const a = [bm25Cand(1, 1)];
+    const b = [vectorCand(1, 1)];
+    expect(rrfWeighted([a, b], [1, 1])[0]?.score).toBeCloseTo(2 / 61);
+    expect(rrfWeighted([a, b], [])[0]?.score).toBeCloseTo(2 / 61);
+  });
+
+  it("a low-weight ranking can be outvoted by a high-weight one", () => {
+    // chunk 1: rank 1 in low-weight (0.3), rank 2 in high-weight (1.0)
+    //   = 0.3/61 + 1/62 ≈ 0.0210
+    // chunk 2: only in low-weight (0.3) at rank 2
+    //   = 0.3/62 ≈ 0.0048
+    const lowW = [bm25Cand(1, 1), bm25Cand(2, 1)];
+    const highW = [vectorCand(3, 1), vectorCand(1, 1)];
+    const fused = rrfWeighted([lowW, highW], [0.3, 1.0]);
+    expect(fused[0]?.chunkId).toBe(1);
+  });
+});
+
+describe("dedupeByRoute", () => {
+  it("keeps the first chunk per route, drops later ones", () => {
+    const ranking: readonly Candidate[] = [
+      { chunkId: 1, score: 5, kind: "rrf", route: "api/orders" },
+      { chunkId: 2, score: 4, kind: "rrf", route: "api/orders" }, // dup route, drop
+      { chunkId: 3, score: 3, kind: "rrf", route: "api/payments" },
+    ];
+    const out = dedupeByRoute(ranking);
+    expect(out.map((c) => c.chunkId)).toEqual([1, 3]);
+  });
+
+  it("keeps candidates without a route attached", () => {
+    const ranking: readonly Candidate[] = [
+      { chunkId: 1, score: 1, kind: "rrf" }, // no route
+      { chunkId: 2, score: 1, kind: "rrf", route: "api/orders" },
+      { chunkId: 3, score: 1, kind: "rrf" }, // no route
+    ];
+    const out = dedupeByRoute(ranking);
+    expect(out).toHaveLength(3);
   });
 });
