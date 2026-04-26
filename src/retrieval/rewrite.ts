@@ -17,7 +17,12 @@ import { ProductSpec, TopicSpec, type ProductSpec as Product, type TopicSpec as 
 interface RewriteResult {
   readonly raw: string;
   readonly cleaned: string;
+  /** FTS5 query with plain tokens AND-joined (no synonym expansion). */
   readonly fts5: string;
+  /** FTS5 query with synonym OR-groups for tokens that are in the synonym table.
+   *  May equal fts5 when no token has synonyms. Used as a second BM25 pass that
+   *  RRF-fuses with the plain pass. */
+  readonly fts5WithSynonyms: string;
   readonly tokens: readonly string[];
   readonly expandedTerms: readonly string[];
   readonly detectedLanguage?: Lang;
@@ -101,18 +106,24 @@ function detectTopic(raw: string): Topic | undefined {
 export function rewriteQuery(raw: string, table: SynonymTable): RewriteResult {
   const trimmed = raw.trim();
   const cleaned = stripNoise(trimmed.toLowerCase());
+  // Two FTS5 expansions: plain (preferred — preserves precision when the
+  // user's term matches the doc), and synonym-expanded (rescue path for
+  // natural-language queries like "verify→validate", "test mode→sandbox").
+  // The pipeline RRF-fuses both BM25 passes with vector — see pipeline.search().
   const expansion = expandQuery(cleaned, table);
+  const expansionSyn = expandQuery(cleaned, table, { expandSynonyms: true });
   const detectedLanguage = detectLanguage(trimmed);
   const detectedProduct = detectProduct(trimmed);
   const detectedTopic = detectTopic(trimmed);
 
   const expandedTerms: string[] = [];
-  for (const group of expansion.expanded) expandedTerms.push(...group);
+  for (const group of expansionSyn.expanded) expandedTerms.push(...group);
 
   const result: RewriteResult = {
     raw,
     cleaned: cleaned.length > 0 ? cleaned : trimmed.toLowerCase(),
     fts5: expansion.fts5,
+    fts5WithSynonyms: expansionSyn.fts5,
     tokens: expansion.tokens,
     expandedTerms,
     ...(detectedLanguage !== undefined && { detectedLanguage }),
