@@ -45,7 +45,11 @@ const TOPIC_HINTS: ReadonlyArray<readonly [RegExp, Topic]> = [
   [/\b(error|failure|errcode|error code)\b/i, TopicSpec.Errors],
   [/\b(integration|integrate|setup|install)\b/i, TopicSpec.Integration],
   [/\b(security|whitelist|ssl|cert|signature)\b/i, TopicSpec.Security],
-  [/\b(api|endpoint|entity|fetch|request|response)\b/i, TopicSpec.Api],
+  // Cover both explicit "api" mentions and implicit API-style action verbs.
+  // "create razorpayx payout" / "fetch a single order" / "list payments" all
+  // want api/* routes — without this match they default to non-API siblings
+  // that outrank by raw text density.
+  [/\b(api|endpoint|entity|fetch|create|list|update|delete|cancel|capture|refund|request|response)\b/i, TopicSpec.Api],
 ];
 
 const PRODUCT_HINTS: ReadonlyArray<readonly [RegExp, Product]> = [
