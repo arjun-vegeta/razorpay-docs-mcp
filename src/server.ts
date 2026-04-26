@@ -46,7 +46,7 @@ import { detectSdk } from "./util/sdk-detect.js";
 import { log } from "./util/log.js";
 
 const SERVER_NAME = "razorpay-docs";
-const SERVER_VERSION = "1.0.3";
+const SERVER_VERSION = "1.0.4";
 
 // JSON-Schema for tool inputs (kept hand-written rather than generated from
 // zod — small, stable, and the agent reads these descriptions).
