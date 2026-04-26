@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rrf, rrfWeighted, RRF_DEFAULT_K } from "../../src/retrieval/rrf.js";
+import { rrf, rrfWeighted, dedupeByRoute, RRF_DEFAULT_K } from "../../src/retrieval/rrf.js";
 import type { Candidate } from "../../src/retrieval/types.js";
 
 function bm25Cand(chunkId: number, score: number): Candidate {
@@ -91,5 +91,27 @@ describe("rrfWeighted", () => {
     const highW = [vectorCand(3, 1), vectorCand(1, 1)];
     const fused = rrfWeighted([lowW, highW], [0.3, 1.0]);
     expect(fused[0]?.chunkId).toBe(1);
+  });
+});
+
+describe("dedupeByRoute", () => {
+  it("keeps the first chunk per route, drops later ones", () => {
+    const ranking: readonly Candidate[] = [
+      { chunkId: 1, score: 5, kind: "rrf", route: "api/orders" },
+      { chunkId: 2, score: 4, kind: "rrf", route: "api/orders" }, // dup route, drop
+      { chunkId: 3, score: 3, kind: "rrf", route: "api/payments" },
+    ];
+    const out = dedupeByRoute(ranking);
+    expect(out.map((c) => c.chunkId)).toEqual([1, 3]);
+  });
+
+  it("keeps candidates without a route attached", () => {
+    const ranking: readonly Candidate[] = [
+      { chunkId: 1, score: 1, kind: "rrf" }, // no route
+      { chunkId: 2, score: 1, kind: "rrf", route: "api/orders" },
+      { chunkId: 3, score: 1, kind: "rrf" }, // no route
+    ];
+    const out = dedupeByRoute(ranking);
+    expect(out).toHaveLength(3);
   });
 });

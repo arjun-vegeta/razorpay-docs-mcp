@@ -15,6 +15,31 @@ import type { Candidate } from "./types.js";
 
 export const RRF_DEFAULT_K = 60;
 
+/**
+ * Per-route deduplication on a fused list. Keeps only the highest-scoring
+ * chunk per route, preserving sort order. Apply AFTER RRF (so chunks score
+ * properly via fusion) but BEFORE boosts and assembly — this keeps display
+ * diversity while letting many-chunk docs win on raw RRF when they should.
+ *
+ * Without this, queries like "UPI test mode VPA success failure" return 3
+ * near-identical chunks from the same template doc instead of one canonical
+ * + diverse alternates.
+ */
+export function dedupeByRoute(ranking: readonly Candidate[]): readonly Candidate[] {
+  const seen = new Set<string>();
+  const out: Candidate[] = [];
+  for (const c of ranking) {
+    if (c.route === undefined) {
+      out.push(c);
+      continue;
+    }
+    if (seen.has(c.route)) continue;
+    seen.add(c.route);
+    out.push(c);
+  }
+  return out;
+}
+
 /** Weighted variant: applies a per-ranking multiplier to that ranking's
  *  contribution to each candidate's score. Defaults to all 1s if weights
  *  is undefined. */
