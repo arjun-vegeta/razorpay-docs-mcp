@@ -11,6 +11,7 @@
 import { createServer as createHttpServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -45,7 +46,7 @@ import { detectSdk } from "./util/sdk-detect.js";
 import { log } from "./util/log.js";
 
 const SERVER_NAME = "razorpay-docs";
-const SERVER_VERSION = "1.0.2";
+const SERVER_VERSION = "1.0.3";
 
 // JSON-Schema for tool inputs (kept hand-written rather than generated from
 // zod — small, stable, and the agent reads these descriptions).
@@ -188,7 +189,11 @@ export interface CreateServerOptions {
 
 export function createServer(opts: CreateServerOptions = {}): ServerHandle {
   const cwd = opts.cwd ?? process.cwd();
-  const config = loadPipelineConfig(cwd);
+  // Indexes are bundled inside the package at dist/index/. Resolve from the
+  // server module's own location (dist/server.js → ../) so indexes are found
+  // regardless of where the user launched npx from.
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const config = loadPipelineConfig(packageRoot);
   const pipeline = new RetrievalPipeline(config);
 
   const resolver = new SqliteCitationResolver(pipeline.bm25Handle);

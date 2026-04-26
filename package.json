@@ -1,6 +1,6 @@
 {
   "name": "@razorpay-docs/mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Unofficial Razorpay docs MCP server for AI coding agents — local-first docs retrieval and code validation.",
   "license": "MIT",
   "author": "Arjun",
