@@ -41,6 +41,8 @@ jobs:
 
       # (A) Cache built indexes + cloned source. Keyed on upstream SHA — most
       # tag pushes reuse the indexes from a recent ci.yml run.
+      # save-always so the cache is populated even if a later step (test,
+      # eval, publish) fails — next attempt benefits.
       - name: Cache built indexes + source
         id: cache-indexes
         uses: actions/cache@v4
@@ -51,6 +53,7 @@ jobs:
           key: indexes-bge-small-${{ steps.upstream.outputs.sha }}-v1
           restore-keys: |
             indexes-bge-small-
+          save-always: true
 
       # (B) Cache HuggingFace model weights.
       - name: Cache HuggingFace model
@@ -58,6 +61,7 @@ jobs:
         with:
           path: node_modules/@huggingface/transformers/.cache
           key: hf-bge-small-en-v1.5-v1
+          save-always: true
 
       - name: Build indexes (cache miss)
         if: steps.cache-indexes.outputs.cache-hit != 'true'
@@ -71,6 +75,10 @@ jobs:
         if: steps.cache-indexes.outputs.cache-hit == 'true'
         run: pnpm exec tsx src/indexer/main.ts build:rules
 
+      # Build dist/server.js BEFORE tests — handshake test spawns it.
+      - name: Build
+        run: pnpm build
+
       - name: Typecheck + lint + test
         run: |
           pnpm typecheck
@@ -80,9 +88,6 @@ jobs:
 
       - name: Eval — full release gate
         run: pnpm eval --report eval/reports/release.md
-
-      - name: Build
-        run: pnpm build
 
       - name: Publish to npm with provenance
         env:
