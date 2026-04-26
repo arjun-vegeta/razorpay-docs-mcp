@@ -2,7 +2,7 @@
   "version": 1,
   "groups": [
     ["refund", "return", "reverse", "chargeback", "dispute", "money back"],
-    ["webhook", "callback", "notification", "event", "hook", "push"],
+    ["webhook", "webhooks", "callback", "hook"],
     ["INR", "rupees", "paise", "rs", "inr"],
     ["recurring", "subscription", "auto-debit", "mandate", "e-mandate", "nach", "autopay", "autopayment"],
     ["razorpay-x", "rzp-x", "rzpx", "razorpayx", "x-payouts", "banking", "payout", "payouts"],
@@ -14,8 +14,11 @@
     ["wallet", "wallets", "prepaid"],
     ["emi", "installment", "instalment", "pay in installments"],
     ["paylater", "pay later", "bnpl", "buy now pay later"],
-    ["verify", "validate", "check", "authenticate", "signature"],
+    ["verify", "validate", "check"],
+    ["authenticate", "authentication"],
+    ["signature", "hash", "hmac", "checksum"],
     ["test", "sandbox", "dummy", "mock"],
+    ["test mode", "sandbox mode", "test environment", "sandbox environment"],
     ["live", "production", "prod"],
     ["api key", "secret", "credential", "token"],
     ["onboarding", "kyc", "submerchant"],
@@ -46,6 +49,10 @@
     ["whitelist", "allowlist", "ip"],
     ["ssl", "tls", "certificate", "cert"],
     ["gst", "tax", "tds"],
-    ["timezone", "ist", "time zone"]
+    ["timezone", "ist", "time zone"],
+    ["properties", "parameters", "fields", "attributes", "props"],
+    ["entity", "object", "schema", "model"],
+    ["setup", "set up", "configure", "configuration", "install"],
+    ["mode", "environment", "env"]
   ]
 }
