@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Razorpay Docs MCP — local, fast, agent-grade docs search</title>
+    <meta
+      name="description"
+      content="An unofficial Model Context Protocol server for Razorpay's documentation. Search, fetch, and validate Razorpay code locally — no network at query time."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css?v=3" />
+  </head>
+  <body>
+    <a class="skip" href="#overview">Skip to content</a>
+
+    <div class="layout">
+    <aside class="sidebar" aria-label="Primary">
+      <a href="#overview" class="brand" aria-label="Razorpay Docs MCP home">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <polygon points="0,0 24,0 12,12" fill="currentColor" />
+          <polygon points="12,12 0,24 24,24" fill="currentColor" />
+        </svg>
+      </a>
+
+      <nav class="nav">
+        <a href="#overview" class="nav-link" data-section="overview">Overview</a>
+        <a href="#tools" class="nav-link" data-section="tools">Tools</a>
+        <a href="#design" class="nav-link" data-section="design">Design</a>
+        <a href="#install" class="nav-link" data-section="install">Install</a>
+
+        <div class="nav-spacer"></div>
+
+        <a href="https://github.com/arjun-vegeta/razorpay-docs-mcp" class="nav-link muted" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://www.npmjs.com/package/@razorpay-docs/mcp" class="nav-link muted" target="_blank" rel="noopener">npm</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <section id="overview" class="section">
+        <p class="eyebrow">Unofficial · Model Context Protocol</p>
+        <h1 class="display">
+          Razorpay's documentation,<br />
+          tuned for agents.
+        </h1>
+        <p class="lede">
+          A local-first MCP server for Razorpay's docs and SDKs. Works with every major AI coding agent — they all gain three tools: <strong>search</strong>, <strong>fetch</strong>, and a <strong>validator</strong> tuned to ~30 Razorpay-specific integration bugs. No API keys. No rate limits. No telemetry.
+        </p>
+
+        <div class="cta-row">
+          <a class="btn" href="#install">
+            Get started
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a class="btn ghost" href="#tools">See the tools</a>
+        </div>
+
+        <dl class="stats">
+          <div><dt>Official docs</dt><dd>2,200+</dd></div>
+          <div><dt>Validator rules</dt><dd>~30</dd></div>
+          <div><dt>p95 search</dt><dd>&lt; 200ms</dd></div>
+          <div><dt>Recall@3</dt><dd>≥ 0.80</dd></div>
+        </dl>
+      </section>
+
+      <section id="tools" class="section">
+        <p class="eyebrow">Tool surface</p>
+        <h2 class="title">Three tools. No more.</h2>
+        <p class="prose">
+          Each MCP tool definition costs the agent 550–1,400 tokens of context before a single user message lands. We hold the line at three — each one earning its place.
+        </p>
+
+        <div class="tool-grid">
+          <article class="tool">
+            <header>
+              <span class="tool-num">01</span>
+              <h3>search_razorpay_docs</h3>
+            </header>
+            <p>
+              Hybrid BM25 + dense retrieval over 2,200+ official docs, fused with RRF. Returns ranked chunks with title, summary, body excerpt, code samples filtered to your SDK, and the canonical URL.
+            </p>
+            <ul class="meta">
+              <li><span>Latency p95</span><span>&lt; 200 ms</span></li>
+              <li><span>SDK auto-detect</span><span>Node, Python, PHP, Java, Ruby, Go</span></li>
+            </ul>
+          </article>
+
+          <article class="tool">
+            <header>
+              <span class="tool-num">02</span>
+              <h3>get_razorpay_doc</h3>
+            </header>
+            <p>
+              Fetch the full markdown body for a known route or URL, plus its outgoing links. Use after search when the agent needs the entire page, not just an excerpt.
+            </p>
+            <ul class="meta">
+              <li><span>Returns</span><span>Markdown + links</span></li>
+              <li><span>Source</span><span>razorpay/markdown-docs</span></li>
+            </ul>
+          </article>
+
+          <article class="tool">
+            <header>
+              <span class="tool-num">03</span>
+              <h3>validate_razorpay_code</h3>
+            </header>
+            <p>
+              The killer feature. ~30 curated rules catch bugs retrieval can't: HMAC over <code>JSON.stringify(req.body)</code>, <code>===</code> on signatures, hardcoded <code>rzp_live_*</code> keys, refunds without <code>Idempotency-Key</code>. Each finding cites the exact doc that explains the fix.
+            </p>
+            <ul class="meta">
+              <li><span>Rules</span><span>~30 curated, citation-backed</span></li>
+              <li><span>Output</span><span>id · severity · fix · URL</span></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="design" class="section">
+        <p class="eyebrow">Why this beats Context7</p>
+        <h2 class="title">Razorpay-specific. Not a scraped subset.</h2>
+
+        <div class="principles">
+          <div class="principle">
+            <h4>Full official corpus, refreshed nightly</h4>
+            <p>2,200+ docs from Razorpay's canonical <code>markdown-docs</code> repo. Not a third-party scrape that lags by weeks.</p>
+          </div>
+          <div class="principle">
+            <h4>Code samples filtered to your SDK</h4>
+            <p>Auto-detects Razorpay in <code>package.json</code>, <code>composer.json</code>, <code>requirements.txt</code>, <code>Gemfile</code>, <code>go.mod</code>, <code>pom.xml</code> — answers in your language, every time.</p>
+          </div>
+          <div class="principle">
+            <h4>Validator with curated rules</h4>
+            <p>~30 hand-written rules with citations to canonical docs. Not a regex catalog — every finding points the agent at the page that explains the fix.</p>
+          </div>
+          <div class="principle">
+            <h4>Hybrid retrieval</h4>
+            <p>BM25 for identifier-heavy queries (route names, SDK methods), dense vectors for synonyms and intent, RRF fusion on top.</p>
+          </div>
+          <div class="principle">
+            <h4>Local-first, zero telemetry</h4>
+            <p>Corpus and indexes ship in the npm package. No API keys, no rate limits, no phone-home. One daily SHA check to upstream — disable with <code>RZP_MCP_AUTO_UPDATE=0</code>.</p>
+          </div>
+          <div class="principle">
+            <h4>BYO embedder, optional</h4>
+            <p>Defaults to <code>bge-small-en-v1.5</code> (32 MB, ~80% recall@3). Plug in Voyage or Cohere and rebuild the index for top-quality retrieval.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="install" class="section">
+        <p class="eyebrow">Install</p>
+        <h2 class="title">One JSON snippet. Same wiring everywhere.</h2>
+        <p class="prose">
+          The snippet below works in every MCP-aware editor — drop it into the config file each one expects, restart, and your agent gains the three tools.
+        </p>
+
+        <p class="step-label">1. Install MCP server</p>
+        <div class="code-block terminal">
+          <div class="code-block-head">
+            <span>shell</span>
+            <button class="copy-btn" type="button" data-copy-target="install-cmd" aria-label="Copy command">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="9" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 11V3a1 1 0 0 1 1-1h7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <pre><code id="install-cmd">npx -y @razorpay-docs/mcp@latest --version</code></pre>
+        </div>
+
+        <p class="step-label">2. Add to your editor's MCP config</p>
+        <div class="code-block">
+          <div class="code-block-head">
+            <span>Claude Code · Cursor · VS Code · Continue · Cline · Windsurf · Zed</span>
+            <button class="copy-btn" type="button" data-copy-target="config-json" aria-label="Copy config">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="9" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 11V3a1 1 0 0 1 1-1h7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <pre><code id="config-json">{
+  "mcpServers": {
+    "razorpay-docs": {
+      "command": "npx",
+      "args": ["-y", "@razorpay-docs/mcp@latest"]
+    }
+  }
+}</code></pre>
+        </div>
+
+        <ul class="agent-list">
+          <li><span>Claude Code</span><code>~/.claude/mcp_servers.json</code></li>
+          <li><span>Cursor</span><code>.cursor/mcp.json</code></li>
+          <li><span>VS Code Copilot Chat</span><code>.vscode/mcp.json</code></li>
+          <li><span>OpenAI Codex CLI</span><code>~/.codex/config.toml</code></li>
+          <li><span>Continue</span><code>~/.continue/config.yaml</code></li>
+          <li><span>Windsurf</span><code>~/.codeium/windsurf/mcp_config.json</code></li>
+          <li><span>Zed</span><code>~/.config/zed/settings.json</code></li>
+          <li><span>Cline</span><code>settings → MCP servers</code></li>
+        </ul>
+
+        <p class="prose small">
+          Need a deployed HTTP server instead of stdio? Run <code>npx @razorpay-docs/mcp@latest --http --port=3030</code> and point clients at <code>http://localhost:3030/</code>.
+        </p>
+
+        <div class="cta-row">
+          <a class="btn" href="https://github.com/arjun-vegeta/razorpay-docs-mcp" target="_blank" rel="noopener">
+            Read the docs
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3h7v7M13 3 3 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div>
+          <p class="foot-brand">Razorpay Docs MCP</p>
+          <p class="foot-note">Unofficial. Built by the community. Not affiliated with Razorpay Software Pvt. Ltd.</p>
+        </div>
+        <p class="foot-meta">MIT licensed · v1.0.3</p>
+      </footer>
+    </main>
+
+    </div>
+
+    <script src="./script.js?v=3" defer></script>
+  </body>
+</html>
