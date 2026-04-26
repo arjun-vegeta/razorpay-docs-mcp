@@ -314,9 +314,9 @@ export class RetrievalPipeline {
         out.push(c);
         continue;
       }
-      const segs = c.route.split("/");
+      const segments = c.route.split("/");
       // First 2 segments fingerprint sibling docs that share an integration tree.
-      const prefix = segs.slice(0, 2).join("/");
+      const prefix = segments.slice(0, 2).join("/");
       const key = `${m.title}::${m.headingPath}`;
       const prevPrefix = seenKeys.get(key);
       if (prevPrefix !== undefined && prevPrefix === prefix) continue; // same family → drop
