@@ -2,9 +2,9 @@
  * Indexer subcommand: validate validator rule citations against the live
  * Razorpay manifest, and emit a JSON snapshot for inspection / CI artifacts.
  *
- * This is the CI gate referenced in plan.md §10.6 — if any rule cites a route
- * that the manifest doesn't have, the build fails. Catches rot in the §9
- * catalog when Razorpay reorganizes their docs upstream.
+ * Citation gate: if any rule cites a route that the manifest doesn't have,
+ * the build fails. Catches rot in the rule catalog when Razorpay reorganizes
+ * their docs upstream.
  *
  * Detector implementations stay in code (regex with flags, heuristic
  * functions); rules.json is metadata-only — id, title, severity, concern,

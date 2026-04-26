@@ -3,7 +3,8 @@
  * manifest, chunks it, extracts code blocks + cross-links, writes to
  * dist/index/index-bm25.db and dist/index/doc-graph.json.
  *
- * Schema per plan.md §8.2 (external-content FTS5 over `chunks`).
+ * Schema: external-content FTS5 over a `chunks` content table; `routes` and
+ * `code_blocks` are plain tables joined at query time.
  */
 
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";

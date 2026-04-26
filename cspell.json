@@ -238,7 +238,8 @@
     "Webhooks",
     "webhooks",
     "Vegeta",
-    "vecs"
+    "vecs",
+    "slugified"
   ],
   "allowCompoundWords": true
 }

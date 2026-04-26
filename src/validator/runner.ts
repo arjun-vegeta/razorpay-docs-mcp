@@ -2,7 +2,7 @@
  * ValidationRunner — executes a registered set of `Rule`s against a code
  * snippet and produces a `ValidationReport`.
  *
- * Per CLAUDE.md §10.3 each rule:
+ * Each rule:
  *   - runs with a 50 ms wall-clock timeout (regex catastrophic-backtracking
  *     defense)
  *   - failures are caught + logged, never propagated

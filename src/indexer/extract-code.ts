@@ -1,7 +1,7 @@
 /**
  * Adapter over `extractFencedBlocks` that tags each block with an ordinal
  * within its parent chunk. Languages are already normalized by the markdown
- * utility (see plan.md §3 for the fence convention used in razorpay/markdown-docs).
+ * utility — Razorpay's docs use ```<lang>: <label>``` fences.
  */
 
 import { extractFencedBlocks } from "../util/markdown.js";

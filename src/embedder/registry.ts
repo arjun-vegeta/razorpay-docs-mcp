@@ -1,7 +1,7 @@
 /**
- * Embedder factory. Adding a new model = one line here. Per CLAUDE.md §10.2,
- * model IDs and dimensions live behind this seam — callers reference embedders
- * by spec name only ("small", "large", "m3", ...).
+ * Embedder factory. Adding a new model = one line here. Model IDs and
+ * dimensions live behind this seam — callers reference embedders by spec
+ * name only ("small", "large", "m3", "voyage", ...).
  */
 
 import { CohereEmbedder } from "./cohere.js";

@@ -10,11 +10,23 @@ Hits the Phase 3 acceptance gate (recall@3 ≥ 0.80, p95 ≤ 200 ms) on the 80-q
 
 The buildplan's rule was: ship the smallest embedder whose recall@3 is within 2 points of the best. Bigger only if the gap > 2 pts AND p95 stays < 200 ms.
 
-In v1 we shipped `small` without running the shootout because:
+We then ran the actual head-to-head and got a **counterintuitive result**: `bge-large` is *worse* on this corpus, not just marginally better-but-not-worth-it.
 
-1. The local-first design assumption is "good-enough on-device, offline." A larger embedder that buys 2-3 pts of recall but pushes the install over 250 MB violates that contract (5.1 hard gate).
-2. `small` already hits the Phase 3 gate.
-3. The actual user-perceived quality is dominated by *which docs are reachable at all*, not the marginal precision difference. The high-leverage retrieval work — per-route dedupe, post-tokenization vec text, dropping `razorpay` as a stopword — was done in Phase 3 and earned all the recall it could.
+| Metric | bge-small (default) | bge-large | Δ |
+|---|---|---|---|
+| **recall@3** | **80.0%** | **75.0%** | **−5.0 pts (large worse)** |
+| recall@1 | 57.5% | 61.3% | +3.8 pts (large slightly better at top-1) |
+| recall@10 | 98.8% | 96.3% | −2.5 pts |
+| MRR | 0.711 | 0.714 | ±0 (tied) |
+| p50 latency | 10 ms | 28 ms | small 3× faster |
+| p95 latency | 32 ms | 47 ms | small wins |
+| Disk | 26 MB index + 32 MB model | 75 MB index + 440 MB model | small 17× smaller |
+
+Why large is worse here: **bge-large is more semantic, less keyword-y**. Razorpay's docs are identifier-heavy (`orders.create`, `webhooks/validate-test`, `payment_capture`), and users search by canonical name. The keyword-locking that bge-small does *is the feature* on this corpus.
+
+Concrete miss: query `"how to verify razorpay webhook signature"`
+- bge-small → `webhooks/validate-test` ✅ (canonical)
+- bge-large → `payments/payment-gateway/web-integration/custom/build-integration` ❌ (generic guide)
 
 ## Latest measured numbers (small, no reranker)
 
@@ -63,7 +75,15 @@ Honest list, in order of likely yield:
 1. **Better synonym map.** Two of the misses come from "errors / error codes" — the corpus uses "errcode" and SDK-specific "turbo-upi/error-codes" which dominate over the canonical `errors/common`. A curated synonym group `error/errors/errcode/error-code` would help. Phase 3 added the dictionary; v1.x should expand it.
 2. **Route-level boosting.** A short `errors/common` page should outrank a long SDK-specific error-code page on a generic "error codes" query. We can boost shorter, broader pages on broad queries.
 3. **Reranker tuning.** The current cross-encoder is generic-relevance. A reranker fine-tuned on Razorpay's queries (or a more pairwise-aware model like `bge-reranker-v2-m3`) might recover canonical-doc precision.
-4. **Larger embedder.** `base` or `large` would gain a small amount but cost disk + cold-start. Probably not worth it on this corpus.
+4. **~~Larger embedder~~ — empirically tested and found to be a regression.** Don't pursue. See the head-to-head table above. Same corpus characteristic that makes Razorpay docs identifier-heavy makes them respond *worse* to bigger more-semantic embedders.
+
+## What we explicitly tested and rejected
+
+- **bge-large** — measured −5 pts recall@3. Don't ship.
+- **bge-base** — not measured but extrapolating from the small→large trend, likely also a regression. (Worth measuring if v1.x retrieval work continues; cheap to verify.)
+- **bge-m3 (multilingual)** — not measured for English queries. Reserve for the multilingual opt-in path only; not a default candidate.
+
+Voyage/Cohere remain as BYO escape hatches for users who *want* a more semantic embedder for their use case (e.g., natural-language queries vs identifier-name queries). Different architecture, may behave differently than bge-large; the infra to try is shipped.
 
 ## Tarball / disk
 

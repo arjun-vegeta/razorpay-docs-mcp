@@ -2,15 +2,36 @@
 
 > Unofficial. Not affiliated with Razorpay Software Pvt. Ltd.
 
-Local-first MCP server for Razorpay's docs and SDKs. AI coding agents (Claude Code, Cursor, Codex CLI, Continue, Cline, Windsurf, ...) can `search_razorpay_docs`, `get_razorpay_doc`, and `validate_razorpay_code` against ~30 Razorpay-specific integration rules — entirely on the user's machine. No API keys. No rate limits. No telemetry.
+[![npm version](https://img.shields.io/npm/v/@razorpay-docs/mcp.svg)](https://www.npmjs.com/package/@razorpay-docs/mcp)
+[![license](https://img.shields.io/npm/l/@razorpay-docs/mcp.svg)](./LICENSE)
+
+A local-first MCP server for Razorpay's docs and SDKs. **Works with every major AI coding agent** that speaks the Model Context Protocol — they all gain three tools: `search_razorpay_docs`, `get_razorpay_doc`, and `validate_razorpay_code` (linter against ~30 Razorpay-specific integration rules).
+
+Entirely on your machine. **No API keys. No rate limits. No telemetry.**
+
+## Supported agents
+
+Drop the same JSON snippet into any of these — wiring is identical because they all speak MCP over stdio:
+
+| Agent | Config file | Status |
+|---|---|---|
+| **Claude Code** (CLI + desktop) | `~/.claude/mcp_servers.json` *or* `<project>/.mcp.json` | ✅ tested |
+| **Cursor** | `<project>/.cursor/mcp.json` *or* `~/.cursor/mcp.json` | ✅ tested |
+| **OpenAI Codex CLI** | `~/.codex/config.toml` (`[mcp_servers.razorpay-docs]`) | ✅ supported |
+| **VS Code Copilot Chat** (MCP) | `<project>/.vscode/mcp.json` | ✅ supported |
+| **Continue** | `~/.continue/config.yaml` (`mcpServers:`) | ✅ supported |
+| **Cline** | settings panel → MCP servers → add | ✅ supported |
+| **Windsurf** (Cascade) | `~/.codeium/windsurf/mcp_config.json` | ✅ supported |
+| **Zed** | `~/.config/zed/settings.json` (`context_servers:`) | ✅ supported |
+| **Any other MCP client** | wherever its `mcpServers` config lives | ✅ — it's just MCP |
 
 ## Quick start
 
 ```bash
-npx @razorpay-docs/mcp --version    # smoke test
+npx -y @razorpay-docs/mcp@latest --version    # 1.0.x
 ```
 
-Then drop the snippet for your editor below and restart the editor. The agent will start calling the tools when you ask Razorpay-related questions.
+Then drop the snippet for your editor below and restart the editor. The agent will call the tools whenever you ask a Razorpay-related question.
 
 ### Claude Code
 
@@ -29,7 +50,7 @@ Then drop the snippet for your editor below and restart the editor. The agent wi
 
 ### Cursor
 
-`<project>/.cursor/mcp.json`:
+`<project>/.cursor/mcp.json` (or `~/.cursor/mcp.json` for global):
 
 ```json
 {
@@ -42,9 +63,34 @@ Then drop the snippet for your editor below and restart the editor. The agent wi
 }
 ```
 
-### VS Code (Copilot Chat MCP), Continue, Cline, Windsurf
+### OpenAI Codex CLI
 
-Same JSON shape — point `command` to `npx`, `args` to `["-y", "@razorpay-docs/mcp"]`.
+`~/.codex/config.toml`:
+
+```toml
+[mcp_servers.razorpay-docs]
+command = "npx"
+args = ["-y", "@razorpay-docs/mcp"]
+```
+
+### VS Code Copilot Chat
+
+`<project>/.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "razorpay-docs": {
+      "command": "npx",
+      "args": ["-y", "@razorpay-docs/mcp"]
+    }
+  }
+}
+```
+
+### Continue, Cline, Windsurf, Zed, anything else
+
+Same JSON shape, different keys per host. The `command` is always `npx` and `args` is always `["-y", "@razorpay-docs/mcp"]`. Refer to your editor's MCP-server documentation for where to put it.
 
 ### Streamable HTTP (deployed)
 
@@ -52,7 +98,7 @@ Same JSON shape — point `command` to `npx`, `args` to `["-y", "@razorpay-docs/
 npx @razorpay-docs/mcp --http --port=3030
 ```
 
-Then point your client at `http://localhost:3030/`. Useful for shared deployments (Cloudflare Workers, Render, internal Docker).
+Then point your client at `http://localhost:3030/`. Useful for shared deployments (Cloudflare Workers, Render, internal Docker, Smithery).
 
 ## What you get
 

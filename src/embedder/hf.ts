@@ -2,9 +2,9 @@
  * HuggingFace transformers.js embedder. Loads ONNX models on demand into
  * `~/.cache/huggingface/`. BGE family uses mean-pool + L2 normalize.
  *
- * Note (CLAUDE.md §10.2): `modelId` and `dim` are deliberately bounded to
- * `src/embedder/`. Nothing outside this module knows which embedder is loaded
- * — that's the seam that makes a small→large swap a 30-min change.
+ * `modelId` and `dim` are deliberately bounded to `src/embedder/`. Nothing
+ * outside this module knows which embedder is loaded — that's the seam that
+ * makes a small→large swap a 30-min change.
  */
 
 import { pipeline, type FeatureExtractionPipeline } from "@huggingface/transformers";

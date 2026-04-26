@@ -1,9 +1,8 @@
 /**
  * `search_razorpay_docs` MCP tool — wraps RetrievalPipeline.search.
  *
- * Tool description tells the agent WHEN to use it (per CLAUDE.md §9.2),
- * not just what it does. Output is structured JSON inside a single text
- * content block (per CLAUDE.md §9.4).
+ * The tool description tells the agent WHEN to use it, not just what it
+ * does. Output is structured JSON inside a single text content block.
  */
 
 import type { RetrievalPipeline } from "../retrieval/pipeline.js";

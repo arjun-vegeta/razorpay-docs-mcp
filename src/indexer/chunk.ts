@@ -2,8 +2,6 @@
  * Markdown → chunks. Section-bounded (H2 primary, H3 sub-split when section
  * exceeds the soft token cap). Code blocks stay attached to the heading they
  * appear under because we split on headings, not on lines.
- *
- * See plan.md §6.1.
  */
 
 import { approxTokens, parseDoc, splitByHeadingLevel } from "../util/markdown.js";

@@ -3,7 +3,7 @@
  * code blocks (filtered to requested language), canonical URL, and 1-3
  * related routes from the doc-graph.
  *
- * Token budgeting per plan.md §7:
+ * Token budgeting:
  *   - body excerpt capped at BODY_TOKEN_CAP (~600 tokens ≈ 2400 chars)
  *   - code blocks: keep all matching language; if no match, return [] (chunk
  *     still carries useful prose)

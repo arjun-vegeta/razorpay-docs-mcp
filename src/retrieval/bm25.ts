@@ -2,7 +2,7 @@
  * BM25 / FTS5 retriever. Opens the index-bm25.db read-only and exposes a
  * single function that returns top-K candidates for a query.
  *
- * Field weights per plan.md §7.3:
+ * Field weights (titles dominate, headings matter, body is the fallback):
  *   title=8.0  description=4.0  category=1.0  route=2.0  heading_path=3.0  body=1.0
  */
 

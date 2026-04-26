@@ -1,6 +1,6 @@
 /**
- * Shared types for the indexing pipeline. See plan.md §8.2 for the
- * persisted schema; this is the in-memory shape produced by the chunker
+ * Shared types for the indexing pipeline. The persisted SQLite schema lives
+ * in build-bm25.ts; this file is the in-memory shape produced by the chunker
  * and consumed by build-bm25 / build-vec.
  */
 

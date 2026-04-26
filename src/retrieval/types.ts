@@ -1,8 +1,6 @@
 /**
  * Shared types for the retrieval layer. Tool I/O schemas (MCP-facing) live in
  * `src/tools/types.ts`; this file is internal to retrieval.
- *
- * See plan.md §5 (tool surface) and §7 (retrieval pipeline).
  */
 
 import { z } from "zod";

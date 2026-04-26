@@ -4,12 +4,14 @@
  *   - get_razorpay_doc
  *   - validate_razorpay_code
  *
- * Stdout is reserved for JSON-RPC; all logs go to stderr (CLAUDE.md §5).
- * Embedder + reranker load lazily on first call (CLAUDE.md §9.9).
+ * Stdout is reserved for JSON-RPC; all logs go to stderr.
+ * Embedder + reranker load lazily on first call.
  */
 
 import { createServer as createHttpServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -43,7 +45,7 @@ import { detectSdk } from "./util/sdk-detect.js";
 import { log } from "./util/log.js";
 
 const SERVER_NAME = "razorpay-docs";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "1.0.1";
 
 // JSON-Schema for tool inputs (kept hand-written rather than generated from
 // zod — small, stable, and the agent reads these descriptions).
@@ -373,9 +375,26 @@ async function main(): Promise<void> {
   }
 }
 
-// Only run if invoked directly (not when imported by tests).
-const invokedDirectly = process.argv[1] !== undefined && import.meta.url.endsWith(process.argv[1]);
-if (invokedDirectly) {
+/**
+ * Detect whether this file is the program entry-point.
+ *
+ * The naive check `import.meta.url.endsWith(process.argv[1])` breaks when
+ * the binary is invoked through npm's bin symlink — argv[1] is the symlink
+ * path (`node_modules/.bin/razorpay-docs-mcp`) while import.meta.url is the
+ * resolved file URL. Compare the realpaths so symlinks resolve identically.
+ *
+ * Returns false (and main() never runs) when imported as a module by tests.
+ */
+function invokedDirectly(): boolean {
+  if (process.argv[1] === undefined) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (invokedDirectly()) {
   void (async (): Promise<void> => {
     try {
       await main();

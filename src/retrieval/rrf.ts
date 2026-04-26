@@ -3,7 +3,7 @@
  * choice for fusing BM25 (negative log-odds) with cosine similarity, which
  * have completely different score distributions.
  *
- * Formula (per plan.md §7.4):
+ * Formula:
  *
  *     score_rrf(d) = Σ 1 / (k + rank_i(d))     k = 60 (default)
  *

@@ -1,7 +1,7 @@
 /**
  * Zod schemas for the MCP tool inputs/outputs. These are the agent-facing
- * contracts; per CLAUDE.md §9.7 they're semver-stable and changes here imply
- * a major version bump.
+ * contracts: semver-stable, with a major version bump for any breaking
+ * change (renamed field, type change, removed value).
  */
 
 import { z } from "zod";

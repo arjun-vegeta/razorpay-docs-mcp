@@ -1,6 +1,6 @@
 /**
- * Logger that writes to stderr. Stdout is reserved for MCP JSON-RPC.
- * See CLAUDE.md §5 — any stray stdout corrupts the protocol.
+ * Logger that writes to stderr. Stdout is reserved for MCP JSON-RPC over
+ * stdio — any stray stdout corrupts the protocol.
  */
 
 export const LogLevel = {

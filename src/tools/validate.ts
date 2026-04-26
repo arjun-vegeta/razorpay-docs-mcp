@@ -2,11 +2,10 @@
  * `validate_razorpay_code` MCP tool — runs the rule set over a code snippet
  * and returns structured issues with resolved citation URLs.
  *
- * The tool description tells the agent WHEN to use it (CLAUDE.md §9.2): you
- * have just written or are about to apply Razorpay integration code, and you
- * want a second pair of eyes before shipping. The validator is local, fast,
- * and deterministic — there's no reason not to call it on every Razorpay
- * change.
+ * The tool description tells the agent WHEN to use it: you have just written
+ * or are about to apply Razorpay integration code, and you want a second pair
+ * of eyes before shipping. The validator is local, fast, and deterministic
+ * — there's no reason not to call it on every Razorpay change.
  */
 
 import type { ValidationRunner } from "../validator/runner.js";
