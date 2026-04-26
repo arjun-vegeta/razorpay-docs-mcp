@@ -36,13 +36,14 @@ import {
 } from "./rerank.js";
 import { Bm25Retriever, BM25_DEFAULT_K } from "./bm25.js";
 import { VectorRetriever, VECTOR_DEFAULT_K } from "./vector.js";
-import { rrf } from "./rrf.js";
+import { rrfWeighted, dedupeByRoute } from "./rrf.js";
 import { rewriteQuery } from "./rewrite.js";
 import {
   applyHardProductFilter,
   applySoftProductBoost,
   applyTopicBoost,
   applyRecencyBoost,
+  applyRouteSegmentBoost,
   reSortByScore,
 } from "./filter.js";
 import { ResultAssembler, type DocGraphEdges, estimateResponseTokens } from "./assemble.js";
@@ -166,24 +167,51 @@ export class RetrievalPipeline {
     const product = options.product ?? rewritten.detectedProduct;
     const productIsExplicit = options.product !== undefined;
     const language = options.language ?? rewritten.detectedLanguage;
-    const topic = options.topic;
+    // Auto-apply detected topic when caller didn't set one. Earlier comment
+    // claimed this "over-fires"; dogfood eval (22 queries) showed the opposite —
+    // topic boost rescues queries like "verify webhook signature" where the
+    // canonical doc uses "validate" instead of "verify" and only ranks if we
+    // boost the webhooks/ prefix. Net hit-rate +18pt.
+    const topic = options.topic ?? rewritten.detectedTopic;
 
     // The vec embedding gets the post-tokenization (stopwords removed) text
     // so noise tokens like "razorpay" / "how" don't pollute the embedding
     // direction. BM25 sees the FTS5-formatted version. Reranker sees a
     // "natural" form (cleaned) since cross-encoders prefer fluent input.
     const vecText = rewritten.tokens.length > 0 ? rewritten.tokens.join(" ") : rewritten.cleaned;
-    const [bm25Hits, vectorHits] = await Promise.all([
+    // Run a second BM25 pass with synonym-expanded tokens only when the
+    // expansion actually adds anything (otherwise it duplicates work).
+    const synAddsTerms = rewritten.fts5WithSynonyms !== rewritten.fts5;
+    const [bm25Hits, bm25SynHits, vectorHits] = await Promise.all([
       Promise.resolve(this.bm25.search(rewritten.fts5, BM25_DEFAULT_K)),
+      synAddsTerms
+        ? Promise.resolve(this.bm25.search(rewritten.fts5WithSynonyms, BM25_DEFAULT_K))
+        : Promise.resolve([] as readonly Candidate[]),
       this.maybeVectorSearch(vecText),
     ]);
 
-    let fused: readonly Candidate[] = rrf([bm25Hits, vectorHits]).slice(0, FUSED_TOP_N);
+    // Weighted RRF: plain BM25 has the strongest precision signal (1.0).
+    // Synonym-expanded BM25 is a recall-rescue signal, weighted lower (0.6) so
+    // it doesn't outvote plain BM25 on queries where the original term is
+    // strong. Vector gets 1.0 — semantic matches matter for short canonical
+    // docs that BM25 can't see (api/authentication, orders/entity).
+    // Fuse, then dedup per-route AFTER RRF. RRF score accumulates correctly
+    // when a doc appears multiple times across retrievers; dedup keeps display
+    // diversity by collapsing same-route chunks into one (the best-ranked).
+    let fused: readonly Candidate[] = dedupeByRoute(
+      rrfWeighted([bm25Hits, bm25SynHits, vectorHits], [1.0, 0.6, 1.0]),
+    ).slice(0, FUSED_TOP_N);
     fused = await this.maybeRerank(rewritten.cleaned, fused);
     if (product !== undefined && productIsExplicit) fused = applyHardProductFilter(fused, product);
     if (product !== undefined && !productIsExplicit) fused = applySoftProductBoost(fused, product);
     if (topic !== undefined) fused = applyTopicBoost(fused, topic);
+    fused = applyRouteSegmentBoost(fused, rewritten.tokens);
     fused = applyRecencyBoost(fused);
+    // Near-duplicate dedup: collapse candidates that share BOTH (title, heading_path)
+    // AND a non-trivial route prefix. This catches sibling docs auto-generated
+    // for parallel integrations (s2s/standard/custom variants of the same flow)
+    // without affecting genuinely distinct same-titled docs.
+    fused = this.dedupeNearDuplicateRoutes(fused);
     fused = reSortByScore(fused);
 
     const results = this.assembler.assemble(fused, language, k);
@@ -249,6 +277,53 @@ export class RetrievalPipeline {
   /** Token estimate for the assembled response — used by eval bloat metric. */
   public estimateResponseTokens(response: SearchResponse): number {
     return estimateResponseTokens(response.results);
+  }
+
+  /**
+   * Drop later candidates that share (title + heading_path) AND first-2 route
+   * segments with an earlier candidate. Conservative — same title alone isn't
+   * enough (auto-generated titles like "Create an Order" are reused across
+   * genuinely distinct API flows). Catches the auto-instantiated sibling docs
+   * Razorpay generates for parallel integration variants (s2s/standard/custom).
+   */
+  private dedupeNearDuplicateRoutes(candidates: readonly Candidate[]): readonly Candidate[] {
+    if (candidates.length < 2) return candidates;
+    const routes = candidates.map((c) => c.route).filter((r): r is string => r !== undefined);
+    if (routes.length === 0) return candidates;
+    const lookup = this.bm25Db
+      .prepare<
+        [number],
+        { route: string; title: string | null; heading_path: string | null }
+      >(
+        `SELECT routes.route, routes.title, chunks.heading_path
+           FROM chunks JOIN routes ON routes.route = chunks.route
+           WHERE chunks.chunk_id = ?`,
+      );
+    const meta = new Map<number, { title: string; headingPath: string }>();
+    for (const c of candidates) {
+      const row = lookup.get(c.chunkId);
+      if (row?.title !== undefined && row?.title !== null) {
+        meta.set(c.chunkId, { title: row.title, headingPath: row.heading_path ?? "" });
+      }
+    }
+    const seenKeys = new Map<string, string>(); // key -> first kept route prefix
+    const out: Candidate[] = [];
+    for (const c of candidates) {
+      const m = meta.get(c.chunkId);
+      if (m === undefined || c.route === undefined) {
+        out.push(c);
+        continue;
+      }
+      const segs = c.route.split("/");
+      // First 2 segments fingerprint sibling docs that share an integration tree.
+      const prefix = segs.slice(0, 2).join("/");
+      const key = `${m.title}::${m.headingPath}`;
+      const prevPrefix = seenKeys.get(key);
+      if (prevPrefix !== undefined && prevPrefix === prefix) continue; // same family → drop
+      if (prevPrefix === undefined) seenKeys.set(key, prefix);
+      out.push(c);
+    }
+    return out;
   }
 
   private async maybeVectorSearch(query: string): Promise<readonly Candidate[]> {
