@@ -77,7 +77,9 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.heavy == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Cold-cache build:vec on a 2-vCPU runner can take 30+ min. Job-level
+    # max (6 h) is fine; cache hits finish the job in <5 min anyway.
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
