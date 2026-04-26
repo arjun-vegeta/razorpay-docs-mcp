@@ -15,6 +15,50 @@ import type { Candidate } from "./types.js";
 
 export const RRF_DEFAULT_K = 60;
 
+/** Weighted variant: applies a per-ranking multiplier to that ranking's
+ *  contribution to each candidate's score. Defaults to all 1s if weights
+ *  is undefined. */
+export function rrfWeighted(
+  rankings: readonly (readonly Candidate[])[],
+  weights: readonly number[],
+  k: number = RRF_DEFAULT_K,
+): readonly Candidate[] {
+  const scores = new Map<number, number>();
+  const carryRoute = new Map<number, string>();
+  const carryCategory = new Map<number, string>();
+
+  rankings.forEach((ranking, rIdx) => {
+    const w = weights[rIdx] ?? 1;
+    ranking.forEach((c, i) => {
+      const prior = scores.get(c.chunkId) ?? 0;
+      scores.set(c.chunkId, prior + w / (k + i + 1));
+      if (c.route !== undefined && !carryRoute.has(c.chunkId)) carryRoute.set(c.chunkId, c.route);
+      if (c.category !== undefined && !carryCategory.has(c.chunkId))
+        carryCategory.set(c.chunkId, c.category);
+    });
+  });
+
+  const fused: Candidate[] = [];
+  for (const [chunkId, score] of scores) {
+    const route = carryRoute.get(chunkId);
+    const category = carryCategory.get(chunkId);
+    fused.push({
+      chunkId,
+      score,
+      kind: "rrf",
+      ...(route !== undefined && { route }),
+      ...(category !== undefined && { category }),
+    });
+  }
+
+  fused.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.chunkId - b.chunkId;
+  });
+
+  return fused;
+}
+
 export function rrf(
   rankings: readonly (readonly Candidate[])[],
   k: number = RRF_DEFAULT_K,
