@@ -37,7 +37,14 @@ const TOPIC_PREFIX_MAP: Record<TopicSpec, readonly string[]> = {
   integration: ["payments/server-integration/", "payments/payment-gateway/"],
   errors: ["errors/", "api/partners/errors"],
   security: ["security/"],
-  testing: ["api/sandbox-setup", "payments/test"],
+  // Testing covers the canonical test-cards/test-upi-details cluster under
+  // payments/payments/, the api/sandbox-setup doc, and any test-mode page.
+  testing: [
+    "api/sandbox-setup",
+    "payments/test",
+    "payments/payments/test-",
+    "payments/dashboard/test-live-modes",
+  ],
 };
 
 export const SOFT_BOOST = 1.2;
