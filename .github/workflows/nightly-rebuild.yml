@@ -32,9 +32,17 @@ jobs:
         id: sha_check
         run: |
           UPSTREAM=$(git ls-remote https://github.com/razorpay/markdown-docs HEAD | cut -f1)
-          INDEXED=$(node -e "const Db=require('better-sqlite3');const db=new Db('dist/index/index-bm25.db',{readonly:true});const r=db.prepare(\"SELECT value FROM meta WHERE key='source_sha'\").get();console.log(r?r.value:'')" 2>/dev/null || echo "")
+          # Source of truth is the tracked .nightly-source-sha file, updated
+          # by the previous auto-PR. dist/index/* is gitignored and therefore
+          # absent on a fresh checkout, so the BM25 meta table cannot be used.
+          if [ -f .nightly-source-sha ]; then
+            INDEXED=$(tr -d '[:space:]' < .nightly-source-sha)
+          else
+            INDEXED=""
+          fi
           echo "upstream=$UPSTREAM"
           echo "indexed=$INDEXED"
+          echo "upstream=$UPSTREAM" >> "$GITHUB_OUTPUT"
           if [ -n "$INDEXED" ] && [ "$UPSTREAM" = "$INDEXED" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "upstream unchanged ($UPSTREAM) — skipping rebuild"
@@ -66,17 +74,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          if git diff --quiet -- dist/index/; then
-            echo "indexes unchanged; nothing to do"
+          # Record the upstream SHA so the next nightly's skip-check can no-op
+          # without needing the gitignored dist/index DBs.
+          echo "${{ steps.sha_check.outputs.upstream }}" > .nightly-source-sha
+          if git diff --quiet -- dist/index/ .nightly-source-sha; then
+            echo "indexes and source-sha unchanged; nothing to do"
             exit 0
           fi
           BRANCH="auto/nightly-$(date -u +%Y%m%d)"
           git config user.name "razorpay-docs-mcp-bot"
           git config user.email "actions@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add dist/index/ eval/reports/
+          git add dist/index/ eval/reports/ .nightly-source-sha
           git commit -m "chore: nightly upstream-docs refresh" --no-verify
           git push -u origin "$BRANCH"
           gh pr create --title "chore: nightly upstream-docs refresh" \
-            --body "Automated rebuild: upstream razorpay/markdown-docs changed." \
+            --body "Automated rebuild: upstream razorpay/markdown-docs changed to ${{ steps.sha_check.outputs.upstream }}." \
             --base main --head "$BRANCH"
